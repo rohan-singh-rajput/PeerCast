@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PeerCast - Watch Room</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 font-sans text-gray-800">
+
+  <!-- Dashboard Header -->
+  <header class="bg-white bg-opacity-60 backdrop-blur-lg fixed top-0 w-full p-4 z-50">
+    <div class="container mx-auto flex justify-between items-center">
+      <h1 class="text-3xl font-semibold text-gray-900 tracking-wide">PeerCast</h1>
+      <nav class="space-x-8">
+        <a href="#create-room" class="text-gray-600 hover:text-gray-900">Create Room</a>
+        <a href="#join-room" class="text-gray-600 hover:text-gray-900">Join Room</a>
+        <a href="#watch-room" class="text-gray-600 hover:text-gray-900">Watch Room</a>
+      </nav>
+      <button class="text-gray-900 mr-4">Logout</button>
+    </div>
+  </header>
+
+  <!-- Create Room Section -->
+  <section id="create-room" class="py-20 mt-16">
+    <div class="container mx-auto text-center">
+      <h2 class="text-4xl font-semibold text-gray-900 mb-8">Create a New Room</h2>
+      <div class="max-w-lg mx-auto bg-white rounded-xl shadow-lg p-8">
+        <form id="createRoomForm">
+          <div class="mb-4">
+            <label class="block text-gray-700 font-semibold mb-2">Room Name</label>
+            <input type="text" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter room name" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700 font-semibold mb-2">Room Description</label>
+            <input type="text" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Describe the room" required>
+          </div>
+          <button type="submit" class="bg-gray-900 text-white px-6 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all duration-300">Create Room</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- Join Room Section -->
+  <section id="join-room" class="py-20">
+    <div class="container mx-auto text-center">
+      <h2 class="text-4xl font-semibold text-gray-900 mb-8">Join an Existing Room</h2>
+      <div class="max-w-lg mx-auto bg-white rounded-xl shadow-lg p-8">
+        <form id="joinRoomForm">
+          <div class="mb-4">
+            <label class="block text-gray-700 font-semibold mb-2">Room ID</label>
+            <input type="text" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter room ID" required>
+          </div>
+          <button type="submit" class="bg-gray-900 text-white px-6 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all duration-300">Join Room</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- Watch Room Section -->
+  <section id="watch-room" class="py-20">
+    <div class="container mx-auto text-center">
+      <h2 class="text-4xl font-semibold text-gray-900 mb-8">Watch Room</h2>
+      <div class="flex flex-col md:flex-row gap-8 items-start">
+        <!-- Video Section -->
+        <div class="flex-1 bg-black rounded-xl shadow-lg h-96 flex items-center justify-center text-white">
+          <p class="text-2xl">Video Player (Placeholder)</p>
+        </div>
+        <!-- Chat Section -->
+        <div class="flex-1 bg-white rounded-xl shadow-lg p-6 max-w-md w-full">
+          <h3 class="text-2xl font-semibold text-gray-900 mb-4">Chat</h3>
+          <div id="chatMessages" class="h-64 overflow-y-scroll border border-gray-200 rounded-lg p-4 mb-4 text-left">
+            <p class="text-gray-600">Alex: Excited for this movie night!</p>
+            <p class="text-gray-600">Sarah: Me too! 🎉</p>
+          </div>
+          <form id="chatForm" class="flex">
+            <input type="text" id="chatInput" class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Type a message" required>
+            <button type="submit" class="bg-gray-900 text-white px-4 py-2 ml-2 rounded-full shadow-md hover:bg-gray-700 transition-all duration-300">Send</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    // Handle Create Room form submission
+    document.getElementById('createRoomForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+      alert('Room created successfully!');
+      // Add code to handle room creation logic, API calls, etc.
+    });
+
+    // Handle Join Room form submission
+    document.getElementById('joinRoomForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+      alert('Joined room successfully!');
+      // Add code to handle joining the room logic, API calls, etc.
+    });
+
+    // Handle Chat Form submission
+    document.getElementById('chatForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+      const message = document.getElementById('chatInput').value;
+      const chatMessages = document.getElementById('chatMessages');
+      const newMessage = document.createElement('p');
+      newMessage.textContent = `You: ${message}`;
+      newMessage.classList.add('text-gray-600');
+      chatMessages.appendChild(newMessage);
+      chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to the latest message
+      document.getElementById('chatInput').value = ''; // Clear input field
+    });
+  </script>
+</body>
+</html>
