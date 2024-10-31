@@ -1,0 +1,29 @@
+version: '4.35.1'
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile 
+    ports:
+      - 8000:8000
+    volumes:
+      - .:/app
+  
+  db:
+    image: postgres
+    restart: always
+    environment:
+      - POSTGRES_PASSWORD: root
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+  
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 33066:3306
+
+      
+    
