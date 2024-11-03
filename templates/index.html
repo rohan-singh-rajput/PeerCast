@@ -11,15 +11,16 @@
   <!-- Header Section -->
   <header class="bg-white bg-opacity-60 backdrop-blur-lg fixed top-0 w-full p-4 z-50">
     <div class="container mx-auto flex justify-between items-center">
-      <h1 class="text-3xl font-semibold text-gray-900 tracking-wide">PeerCast</h1>
+      <a href="{% url 'home' %}" class="text-3xl font-semibold text-gray-900 tracking-wide">PeerCast</a>
       <nav class="space-x-8">
         <a href="#features" class="text-gray-600 hover:text-gray-900">Features</a>
-        <a href="#faq" class="text-gray-600 hover:text-gray-900">FAQ</a>
-        <a href="#contact" class="text-gray-600 hover:text-gray-900">Contact</a>
+        <a href="#faq" class="text-gray-600 hover:text-gray-900">Join Room</a>
+        <a href="#contact" class="text-gray-600 hover:text-gray-900">Create Room</a>
       </nav>
       <div>
-        <button class="text-gray-900 mr-4">Login</button>
-        <button class="bg-gray-900 text-white px-6 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all duration-300">Sign Up</button>
+        <a href="{% url 'login' %}" class="text-gray-900 mr-4 px-4 py-2 border border-gray-900 rounded-full hover:bg-gray-100 transition-all duration-300">Login</a>
+        <a href="{% url 'register' %}" class="bg-gray-900 text-white px-6 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all duration-300">Sign Up</a>
+        
       </div>
     </div>
   </header>
