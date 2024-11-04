@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Created</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+
+    <!-- Main Container -->
+    <div class="max-w-lg w-full bg-white rounded-2xl shadow-lg p-10 text-center">
+        <h1 class="text-3xl font-semibold text-gray-900 mb-6">Meeting Created!</h1>
+        
+        <p class="text-gray-700 mb-4">Share this link with your friends to join:</p>
+        <a href="{{ meeting_link }}" class="text-blue-500 underline break-words">{{ meeting_link }}</a>
+    </div>
+
+</body>
+</html>
