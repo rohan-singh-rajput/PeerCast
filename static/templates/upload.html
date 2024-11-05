@@ -1,0 +1,19 @@
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chunked File Upload</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/resumable.js/1.0.3/resumable.js"></script>
+</head>
+<body>
+
+<h1>Upload File in Chunks</h1>
+<input type="file" id="fileInput" />
+<div id="uploadStatus"></div>
+
+<script src="{% static '/upload.js' %}"></script>
+</body>
+</html>

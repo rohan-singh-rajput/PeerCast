@@ -1,0 +1,6 @@
+# requirements.txt
+Django>=4.0
+boto3
+djangorestframework
+django-storages
+requests
