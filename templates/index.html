@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PeerCast - Watch Together</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 font-sans text-gray-800">
+
+  <!-- Header Section -->
+  <header class="bg-white bg-opacity-60 backdrop-blur-lg fixed top-0 w-full p-4 z-50">
+    <div class="container mx-auto flex justify-between items-center">
+      <a href="{% url 'home' %}" class="text-3xl font-semibold text-gray-900 tracking-wide">PeerCast</a>
+      <nav class="space-x-8">
+        <a href="#features" class="text-gray-600 hover:text-gray-900">Features</a>
+        <a href="#faq" class="text-gray-600 hover:text-gray-900">Join Room</a>
+        <a href="#contact" class="text-gray-600 hover:text-gray-900">Create Room</a>
+      </nav>
+      <div>
+        <a href="{% url 'login' %}" class="text-gray-900 mr-4 px-4 py-2 border border-gray-900 rounded-full hover:bg-gray-100 transition-all duration-300">Login</a>
+        <a href="{% url 'register' %}" class="bg-gray-900 text-white px-6 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all duration-300">Sign Up</a>
+        
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="bg-cover bg-center h-screen text-center flex flex-col items-center justify-center">
+    <h2 class="text-5xl md:text-6xl font-semibold text-gray-900">Stream Together. Anytime.</h2>
+    <p class="text-xl text-gray-700 mt-4 max-w-2xl">Enjoy private streaming rooms and share real-time experiences with friends and family.</p>
+    <button class="bg-gray-900 text-white text-lg md:text-xl px-12 py-4 rounded-full shadow-lg hover:bg-gray-700 transform hover:scale-105 transition-all duration-300 mt-10">
+      Get Started for Free
+    </button>
+  </section>
+
+  <!-- Features Section -->
+  <section id="features" class="py-20 bg-white">
+    <div class="container mx-auto text-center">
+      <h2 class="text-4xl font-semibold text-gray-900">Why PeerCast?</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-12 mt-12">
+        <div class="p-8 bg-white bg-opacity-80 backdrop-blur-xl rounded-xl shadow-lg">
+          <span class="text-gray-800 text-5xl">🔒</span>
+          <h3 class="text-2xl font-semibold mt-6 text-gray-900">Private Rooms</h3>
+          <p class="text-gray-600 mt-4">Stream in private rooms with friends and family for an exclusive experience.</p>
+        </div>
+        <div class="p-8 bg-white bg-opacity-80 backdrop-blur-xl rounded-xl shadow-lg">
+          <span class="text-gray-800 text-5xl">🎉</span>
+          <h3 class="text-2xl font-semibold mt-6 text-gray-900">Watch Party Mode</h3>
+          <p class="text-gray-600 mt-4">Stream together in real-time with a Watch Party mode, wherever you are.</p>
+        </div>
+        <div class="p-8 bg-white bg-opacity-80 backdrop-blur-xl rounded-xl shadow-lg">
+          <span class="text-gray-800 text-5xl">💬</span>
+          <h3 class="text-2xl font-semibold mt-6 text-gray-900">Real-Time Chat</h3>
+          <p class="text-gray-600 mt-4">Discuss, react, and enjoy the moment with our live chat feature.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer Section -->
+  <footer class="bg-gray-900 text-gray-300 p-6">
+    <div class="container mx-auto flex justify-between items-center">
+      <p>&copy; 2024 PeerCast. All rights reserved.</p>
+      <nav class="space-x-4">
+        <a href="#about" class="hover:text-white">About</a>
+        <a href="#contact" class="hover:text-white">Contact</a>
+        <a href="#privacy" class="hover:text-white">Privacy Policy</a>
+        <a href="#terms" class="hover:text-white">Terms of Service</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>
