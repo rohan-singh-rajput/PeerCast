@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>PeerCast</title>
+        <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+    </head>
+    <body>
+        <h1>Video Upload and Chunking</h1>
+        <input type="file" id="videoInput" accept="video/*"><br><br>
+        <button id="uploadButton">Upload and Chunk Video</button>
+        <div id="log"></div>
+
+        <script>
+            // Import necessary functions from FFmpeg WASM
+            const { createFFmpeg, fetchFile } = FFmpeg;
+            const ffmpeg = createFFmpeg({ log: true });  // Create an FFmpeg instance with logging enabled
+            const logDiv = document.getElementById('log');  // Reference to the log div for displaying messages
+    
+            // Function to load FFmpeg WASM, called before processing begins
+            async function loadFFmpeg() {
+                if (!ffmpeg.isLoaded()) {
+                    await ffmpeg.load();  // Load FFmpeg if not already loaded
+                }
+            }
+    
+            // Event listener for the upload button
+            document.getElementById('uploadButton').onclick = async () => {
+                const videoinput = document.getElementById('videoInput');
+                if (!videoinput.files.length) {  // Ensure a file is selected
+                    alert("Please select a video file first.");
+                    return;
+                }
+    
+                const file = videoinput.files[0];  // Get the selected file
+                await loadFFmpeg();  // Load FFmpeg
+                console.log("FFmpeg loaded");
+    
+                // Read the video file and write it to FFmpeg's in-memory filesystem
+                ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
+    
+                // Segment the video into 5-second chunks with FFmpeg command
+                await ffmpeg.run(
+                    '-i', 'input.mp4',       // Input file name
+                    '-f', 'segment',         // Format as segments
+                    '-segment_time', '5',    // Duration of each segment
+                    '-c', 'copy',            // Copy codec to avoid re-encoding
+                    'output%03d.mp4'         // Output pattern for chunked files (e.g., output001.mp4)
+                );
+    
+                // Loop through each generated chunk and upload it
+                let chunkIndex = 0;
+                while (true) {
+                    // Generate filename for each chunk
+                    const chunkFilename = `output${chunkIndex.toString().padStart(3, '0')}.mp4`;
+                    
+                    try {
+                        // Read each chunk file from FFmpeg's filesystem
+                        const data = ffmpeg.FS('readFile', chunkFilename);
+                        const chunkBlob = new Blob([data.buffer], { type: 'video/mp4' });  // Convert to Blob format
+    
+                        // Send chunk filename and index to Django backend to get a presigned URL
+                        const response = await fetch(`{% url 'get_presigned_url' %}`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json', 
+                                'X-CSRFToken': '{{ csrf_token }}'  // CSRF token for Django POST requests
+                            },
+                            body: JSON.stringify({
+                                filename: chunkFilename,
+                                chunkNumber: chunkIndex
+                            })
+                        });
+    
+                        // Extract the presigned URL from the backend response
+                        const { presigned_url } = await response.json();
+                        
+                        // Upload the chunk to S3 using the presigned URL
+                        await uploadToS3(presigned_url, chunkBlob);
+    
+                        // Log the successful upload of each chunk
+                        logDiv.innerHTML += `Uploaded chunk: ${chunkFilename}<br>`;
+                        chunkIndex += 1;  // Move to the next chunk
+                    } catch (e) {
+                        // Break the loop if no more chunks are available
+                        break;
+                    }
+                }
+            };
+
+            async function uploadToS3(presignedUrl, chunkBlob)
+            {
+                await fetch(presignedUrl, {
+                    method: 'PUT',
+                    body: chunkBlob,
+                    headers: {
+                        'Content-Type': 'video/mp4'     // Ensure content type matches video
+                    }
+                });
+            }
+        </script>
+    </body>
+</html>
