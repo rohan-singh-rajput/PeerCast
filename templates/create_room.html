@@ -1,0 +1,6 @@
+<!-- video_streaming/templates/video_streaming/create_room.html -->
+<form method="POST">
+    {% csrf_token %}
+    <input type="text" name="room_name" placeholder="Enter room name" required>
+    <button type="submit">Create Room</button>
+</form>

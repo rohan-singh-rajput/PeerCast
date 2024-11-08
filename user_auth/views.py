@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.forms import AuthenticationForm
 import uuid
+from django.contrib.auth.decorators import login_required
 
 
 def home_view(request):
@@ -63,13 +64,13 @@ def logout_view(request):
     logout(request)
     return redirect("home") 
 
-
+@login_required
 def dashboard_view(request):
     if not request.user.is_authenticated:
         return redirect("login")  # Redirect to login if not authenticated
     return render(request, "dashboard.html")
 
-
+@login_required
 def create_meeting(request):
     if request.method == 'POST':
         # Process the form data
@@ -84,3 +85,7 @@ def create_meeting(request):
         return render(request, 'meeting_created.html', {'meeting_link': meeting_link})
     
     return render(request, 'create_meeting.html')
+
+
+def join_room(request):
+    return render(request,'join_room.html')
