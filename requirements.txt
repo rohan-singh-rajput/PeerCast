@@ -1,0 +1,8 @@
+Django
+psycopg2-binary
+djangorestframework
+djangorestframework-simplejwt
+django-dotenv
+boto3
+botocore
+django-ratelimit
