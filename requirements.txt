@@ -6,3 +6,6 @@ django-dotenv
 boto3
 botocore
 django-ratelimit
+
+
+tailwindcss

@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<body class="bg-gray-50 font-sans text-gray-800">
+
+    <!-- Header -->
+    <header class="bg-white bg-opacity-60 backdrop-blur-lg fixed top-0 w-full p-4 z-50">
+      <div class="container mx-auto flex justify-between items-center">
+        <a href="{% url 'home' %}" class="text-3xl font-semibold text-gray-900 tracking-wide">PeerCast</a>
+      </div>
+    </header>
+  
+    <!-- Signup Section -->
+    <section class="flex items-center justify-center h-screen">
+      <div class="bg-white rounded-xl shadow-lg p-8 max-w-md w-full">
+          <h2 class="text-3xl font-semibold text-gray-900 mb-6 text-center">Create an Account</h2>
+          
+          <form method="post">
+            {% csrf_token %}
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 font-semibold mb-2" for="username">Username</label>
+                <input type="text" name="username" id="username" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter your Username" required>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 font-semibold mb-2" for="email">Email</label>
+                <input type="email" name="email" id="email" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter your Email" required>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 font-semibold mb-2" for="password">Password</label>
+                <input type="password" name="password" id="password" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Create a password" required>
+            </div>
+            
+            <button type="submit" class="bg-gray-900 text-white px-6 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all duration-300 w-full">Sign Up</button>
+        </form>
+        
+          
+          <p class="text-center text-gray-600 mt-4">Already have an account? 
+              <a href="{% url 'login' %}" class="text-blue-600 hover:underline">Login</a>
+          </p>
+      </div>
+  </section>
+  </body>
+  {% endblock %}
