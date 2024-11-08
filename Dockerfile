@@ -14,6 +14,7 @@ COPY . /code/
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
+
 # Expose the port the app runs on
 EXPOSE 8000
 
