@@ -1,14 +1,16 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from core.models import UserProfile
-from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.forms import AuthenticationForm
-import uuid
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import AuthenticationForm
-
+from django.shortcuts import get_object_or_404, render, redirect
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from .models import Room, UserProfile
+from django.contrib import messages
+import uuid
 
 def home_view(request):
     return render(request, "app/index.html")
@@ -76,3 +78,29 @@ def dashboard_view(request):
     if not request.user.is_authenticated:
         return redirect("login")  # Redirect to login if not authenticated
     return render(request, "app/dashboard.html")
+
+
+# room creation
+@login_required
+def create_room_view(request):
+    if request.method == "POST":
+        room_name = request.POST.get("room_name")
+        if not room_name:
+            messages.error(request, "Room name is required.")
+            return redirect("create_room")
+        
+        room = Room.objects.create(name=room_name, host=request.user)
+        room.save()
+        return redirect("join_room", room_id=room.id)
+    
+    return render(request, "app/create_room.html")
+
+# View to join a room
+@login_required
+def join_room_view(request, room_id):
+    room = get_object_or_404(Room, id=room_id)
+    if request.user not in room.participants.all() and request.user != room.host:
+        room.participants.add(request.user)
+        room.save()
+        messages.success(request, f"You have successfully joined the room '{room.name}'!")
+    return render(request, "app/room.html", {"room": room})

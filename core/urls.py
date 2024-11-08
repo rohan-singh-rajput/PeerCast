@@ -15,5 +15,7 @@ urlpatterns = [
     path('dashboard/',views.dashboard_view,name='dashboard'),
 
     # room
+    path('room/create/', views.create_room_view, name='create_room'),
+    path('room/<int:room_id>/join/', views.join_room_view, name='join_room'),
     
 ]

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Room</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@^2.0/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@4.6.2/dist/emoji-button.min.js"></script>
+    <script>
+        function toggleChat() {
+            document.getElementById('chatOverlay').classList.toggle('hidden');
+        }
+        function toggleParticipants() {
+            document.getElementById('participantsOverlay').classList.toggle('hidden');
+        }
+        function toggleFullScreen(videoElement) {
+            if (videoElement.requestFullscreen) {
+                videoElement.requestFullscreen();
+            } else if (videoElement.mozRequestFullScreen) { // Firefox
+                videoElement.mozRequestFullScreen();
+            } else if (videoElement.webkitRequestFullscreen) { // Chrome, Safari and Opera
+                videoElement.webkitRequestFullscreen();
+            } else if (videoElement.msRequestFullscreen) { // IE/Edge
+                videoElement.msRequestFullscreen();
+            }
+        }
+        function togglePlayPause(videoElement) {
+            if (videoElement.paused) {
+                videoElement.play();
+            } else {
+                videoElement.pause();
+            }
+        }
+        document.addEventListener('DOMContentLoaded', function () {
+            const video = document.getElementById('hls-video');
+            // dummy video , needs to added from database
+            const videoUrl = 'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8';
+            if (Hls.isSupported() && videoUrl) {
+                const hls = new Hls();
+                hls.loadSource(videoUrl);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, function () {
+                    video.play();
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = videoUrl;
+                video.addEventListener('loadedmetadata', function () {
+                    video.play();
+                });
+            }
+
+            // Emoji Picker setup
+            const picker = new EmojiButton();
+            const emojiButton = document.getElementById('emojiButton');
+            picker.on('emoji', emoji => {
+                const chatInput = document.getElementById('chatInput');
+                chatInput.value += emoji;
+            });
+            emojiButton.addEventListener('click', () => {
+                picker.togglePicker(emojiButton);
+            });
+        });
+    </script>
+</head>
+<body class="bg-gray-100">
+<header class="bg-white bg-opacity-60 backdrop-blur-lg fixed top-0 w-full p-4 z-50">
+    <div class="container mx-auto flex justify-between items-center">
+        
+        <div class="flex space-x-4 items-center">
+            <button onclick="window.location.href='{% url 'logout' %}'" class="text-gray-900 hover:text-gray-700 transition-all duration-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1m0-10V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2h4a2 2 0 002-2v-1" />
+                </svg>
+            </button>
+            <button onclick="window.close()" class="text-red-600 hover:text-red-500 transition-all duration-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        
+        </div>
+        
+        </div>
+</header>
+<div class="flex h-screen pt-20">
+    <!-- Video Stream Area -->
+    <div class="flex-1 flex flex-col relative items-start justify-center pl-10">
+        <!-- Video Streams -->
+        <div class="w-full h-full max-w-screen-lg max-h-screen-lg bg-black relative rounded-lg overflow-hidden">
+            <!-- Main Speaker HLS Video -->
+            <video id="hls-video" class="w-full h-full object-cover rounded-lg" controls autoplay></video>
+            <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center justify-center space-x-4">
+                {% if user.is_room_owner %}
+                <button onclick="togglePlayPause(document.getElementById('hls-video'))" class="bg-gray-800 text-white px-4 py-2 rounded-full">
+                    Play/Pause
+                </button>
+                {% endif %}
+                <button onclick="toggleFullScreen(document.getElementById('hls-video'))" class="bg-gray-800 text-white px-4 py-2 rounded-full">
+                    Full Screen
+                </button>
+            </div>
+            <p class="absolute bottom-2 left-2 text-white font-semibold">You</p>
+        </div>
+    </div>
+
+    <!-- Chat Area -->
+    <div id="chatOverlay" class="w-1/4 bg-white shadow-md p-4 absolute top-0 right-0 h-full z-10 flex flex-col rounded-lg">
+        
+        <h2 class="text-lg font-semibold mb-4">Chat</h2>
+        <!-- Chat content here -->
+        <div class="h-4/5 overflow-y-auto mb-4 p-4 bg-white rounded-2xl border border-gray-300" id="chatMessages">
+            <!-- Messages would be displayed here -->
+            <div class="flex items-start mb-4">
+                <div class="w-10 h-10 rounded-full bg-gray-300 mr-3 flex items-center justify-center text-white font-bold">U1</div>
+                <div class="bg-gray-100 text-gray-900 p-3 rounded-2xl border border-gray-300 shadow-sm">
+                    <p class="font-semibold">User 1</p>
+                    <p>Hello everyone! 👋</p>
+                </div>
+            </div>
+            <div class="flex items-start mb-4">
+                <div class="w-10 h-10 rounded-full bg-gray-300 mr-3 flex items-center justify-center text-white font-bold">U2</div>
+                <div class="bg-gray-100 text-gray-900 p-3 rounded-2xl border border-gray-300 shadow-sm">
+                    <p class="font-semibold">User 2</p>
+                    <p>Hey! Excited to be here!</p>
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2 mt-2">
+            <input type="text" id="chatInput" class="flex-1 p-2 border rounded-2xl" placeholder="Type a message...">
+            <button id="emojiButton" class="bg-gray-200 text-gray-700 px-3 py-2 rounded-full border border-gray-400 hover:bg-gray-300 transition-all duration-300">😊</button>
+            <button onclick="sendMessage()" class="bg-gray-900 text-white px-6 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all duration-300">Send</button>
+        </div>
+    </div>
+</div>
+<script>
+    function sendMessage() {
+        const messageInput = document.getElementById('chatInput');
+        const message = messageInput.value.trim();
+        if (message) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('flex', 'items-start', 'mb-4');
+            messageDiv.innerHTML = `
+                <div class="w-10 h-10 rounded-full bg-gray-300 mr-3 flex items-center justify-center text-white font-bold">You</div>
+                <div class="bg-gray-100 text-gray-900 p-3 rounded-2xl border border-gray-300 shadow-sm">
+                    <p class="font-semibold">You</p>
+                    <p>${message}</p>
+                </div>
+            `;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            messageInput.value = '';
+        }
+    }
+</script>
+</body>
+</html>
