@@ -1,45 +1,103 @@
-
 {% extends 'base.html' %}
 {% block content %}
 <body class="bg-gray-50 font-sans text-gray-800">
 
     <!-- Header -->
     <header class="bg-white bg-opacity-60 backdrop-blur-lg fixed top-0 w-full p-4 z-50">
-      <div class="container mx-auto flex justify-between items-center">
-        <a href="{% url 'home' %}" class="text-3xl font-semibold text-gray-900 tracking-wide">PeerCast</a>
-      </div>
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="{% url 'home' %}" class="text-3xl font-semibold text-gray-900 tracking-wide">PeerCast</a>
+        </div>
     </header>
-  
+
     <!-- Login Section -->
     <section class="flex items-center justify-center h-screen">
-      <div class="bg-white rounded-xl shadow-lg p-8 max-w-md w-full">
-        <h2 class="text-3xl font-semibold text-gray-900 mb-6 text-center">Login</h2>
-        <form method="post">
-          {% csrf_token %}
-          <div class="mb-4">
-              <label class="block text-gray-700 font-semibold mb-2" for="email">Email</label>
-              <input type="email" name="email" id="email" class="w-full px-4 py-2 border rounded-lg" placeholder="Enter your Email" required>
-          </div>
-      
-          <div class="mb-4">
-              <label class="block text-gray-700 font-semibold mb-2" for="password">Password</label>
-              <input type="password" name="password" id="password" class="w-full px-4 py-2 border rounded-lg" placeholder="Enter your Password" required>
-          </div>
-      
-          <button type="submit" class="bg-gray-900 text-white px-6 py-2 rounded-full w-full">Login</button>
-      </form>
-      
-        <p class="text-center text-gray-600 mt-4">Don't have an account? <a href="{% url 'register' %}" class="text-blue-600 hover:underline">Sign up</a></p>
-      </div>
-  
-      {% if messages %}
-      <ul>
-          {% for message in messages %}
-              <li>{{ message }}</li>
-          {% endfor %}
-      </ul>
-  {% endif %}
-    </section>
-  </body>
+        <div class="bg-white rounded-xl shadow-lg p-8 max-w-md w-full">
+            <h2 class="text-3xl font-semibold text-gray-900 mb-6 text-center">Login</h2>
+            <form method="post">
+                {% csrf_token %}
 
+                <div class="mb-4">
+                    <label class="block text-gray-700 font-semibold mb-2" for="email">Email</label>
+                    <input type="email" name="email" id="email" aria-label="email" class="w-full px-4 py-2 border rounded-lg" placeholder="Enter your Email" required>
+                    <div id="emailError" class="text-red-500 text-sm mt-1"></div>
+                </div>
+
+                <div class="mb-4 relative">
+                    <label class="block text-gray-700 font-semibold mb-2" for="password">Password</label>
+                    <input type="password" name="password" id="password" aria-label="password" class="w-full px-4 py-2 border rounded-lg" placeholder="Enter your Password" required>
+                    <button type="button" onclick="togglePassword()" class="absolute right-3 top-3 text-gray-600">
+                        Show
+                    </button>
+                    <div id="passwordError" class="text-red-500 text-sm mt-1"></div>
+                </div>
+
+                <button type="submit" class="bg-gray-900 text-white px-6 py-2 rounded-full w-full">
+                    Login
+                </button>
+            </form>
+
+            <p class="text-center text-gray-600 mt-4">Don't have an account? <a href="{% url 'register' %}" class="text-blue-600 hover:underline">Sign up</a></p>
+
+            {% if messages %}
+            <div id="toast" class="bg-green-100 text-green-800 p-4 rounded-md mt-4">
+                {% for message in messages %}
+                    <p>{{ message }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <script>
+        // Password Toggle
+        function togglePassword() {
+            const password = document.getElementById('password');
+            const type = password.type === 'password' ? 'text' : 'password';
+            password.type = type;
+        }
+
+        // Real-time Validation
+        document.getElementById('email').addEventListener('input', function () {
+            const emailInput = this.value;
+            const emailError = document.getElementById('emailError');
+            if (!emailInput.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+                emailError.textContent = "Please enter a valid email address.";
+            } else {
+                emailError.textContent = "";
+            }
+        });
+
+        document.getElementById('password').addEventListener('input', function () {
+            const passwordInput = this.value;
+            const passwordError = document.getElementById('passwordError');
+            if (passwordInput.length < 6) {
+                passwordError.textContent = "Password must be at least 6 characters.";
+            } else {
+                passwordError.textContent = "";
+            }
+        });
+    </script>
+
+    <style>
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        form {
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</body>
 {% endblock %}

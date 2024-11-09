@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block content %}
+<body class="bg-gray-50 font-sans text-gray-800">
+    <div class="container mx-auto mt-20 max-w-lg">
+        <h1 class="text-3xl font-bold text-center mb-8">Join a Meeting</h1>
+        <form id="joinMeetingForm" method="post">
+            {% csrf_token %}
+            <div class="mb-4">
+                <label class="block text-gray-700 font-semibold mb-2" for="room_code">Enter Room Code or Link</label>
+                <input type="text" name="room_code" id="room_code" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter room code or URL" required>
+            </div>
+            <button type="submit" class="bg-gray-900 text-white px-6 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all duration-300 w-full">Join Meeting</button>
+        </form>
+
+        <!-- Error Message -->
+        <div id="errorContainer" class="hidden mt-4">
+            <p class="text-red-600 font-semibold" id="errorMessage"></p>
+        </div>
+    </div>
+
+   
+</body>
+{% endblock %}

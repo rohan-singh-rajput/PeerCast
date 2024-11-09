@@ -16,6 +16,6 @@ urlpatterns = [
 
     # room
     path('room/create/', views.create_room_view, name='create_room'),
-    path('room/<int:room_id>/join/', views.join_room_view, name='join_room'),
+    path('room/join/', views.join_room_view, name='join_room'),
     
 ]

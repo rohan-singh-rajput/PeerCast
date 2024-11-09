@@ -3,14 +3,73 @@
 <body class="bg-gray-50 font-sans text-gray-800">
     <div class="container mx-auto mt-20 max-w-lg">
         <h1 class="text-3xl font-bold text-center mb-8">Create a Room</h1>
-        <form method="post">
+        <form id="uploadForm" method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="mb-4">
                 <label class="block text-gray-700 font-semibold mb-2" for="room_name">Room Name</label>
                 <input type="text" name="room_name" id="room_name" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter room name" required>
             </div>
-            <button type="submit" class="bg-gray-900 text-white px-6 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all duration-300 w-full">Create Room</button>
+            <div class="mb-4">
+                <label class="block text-gray-700 font-semibold mb-2" for="video">Upload Video</label>
+                <input type="file" name="video" id="video" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" accept="video/*" required>
+            </div>
+            <button type="submit" class="bg-gray-900 text-white px-6 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all duration-300 w-full">Create Room & Upload Video</button>
         </form>
+
+        <!-- Progress Bar -->
+        <div id="progressContainer" class="hidden mt-4">
+            <label class="block text-gray-700 font-semibold mb-2">Upload Progress</label>
+            <div class="w-full bg-gray-200 rounded-full">
+                <div id="progressBar" class="bg-blue-600 text-xs font-medium text-blue-100 text-center p-0.5 leading-none rounded-full" style="width: 0%;">0%</div>
+            </div>
+        </div>
+
+        <!-- Shareable Link -->
+        <div id="roomLinkContainer" class="hidden mt-4">
+            <label class="block text-gray-700 font-semibold mb-2">Shareable Room Link</label>
+            <a id="roomLink" href="#" class="text-blue-600 hover:underline break-all"></a>
+        </div>
     </div>
 
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent form submission
+            
+            const formData = new FormData();
+            formData.append('room_name', document.getElementById('room_name').value);
+            formData.append('video', document.getElementById('video').files[0]);
+
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            const roomLinkContainer = document.getElementById('roomLinkContainer');
+            const roomLink = document.getElementById('roomLink');
+
+            progressContainer.classList.remove('hidden');
+            
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '{% url "create_room" %}', true);
+            
+            xhr.upload.addEventListener('progress', function(event) {
+                if (event.lengthComputable) {
+                    const percentComplete = Math.round((event.loaded / event.total) * 100);
+                    progressBar.style.width = percentComplete + '%';
+                    progressBar.textContent = percentComplete + '%';
+                }
+            });
+
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    roomLink.href = response.room_url;
+                    roomLink.textContent = response.room_url;
+                    roomLinkContainer.classList.remove('hidden');
+                } else {
+                    alert('An error occurred during the upload.');
+                }
+            };
+
+            xhr.send(formData);
+        });
+    </script>
+</body>
 {% endblock %}

@@ -3,15 +3,15 @@
 <body class="bg-gray-100 min-h-screen flex items-center justify-center">
 
     <!-- Main Container -->
-    <div class="max-w-2xl w-full bg-white rounded-2xl shadow-lg p-10">
+    <div class="max-w-2xl w-full bg-white rounded-2xl shadow-lg p-10 fade-in main-container">
         <!-- Header -->
         <h1 class="text-4xl font-semibold text-gray-900 text-center mb-4">Welcome to Peercast</h1>
-        <p class="text-xl text-gray-700 text-center mb-8">Hello, {{ user.username }}!</p>
+        <p class="text-xl text-gray-700 text-center mb-8">Good {{ greeting_time }}, {{ user.username }}!</p>
         
         <!-- Action Buttons in a Row -->
         <div class="flex justify-around mt-8">
             <!-- Create a Meeting Button -->
-            <a href="{% url 'create_room' %}" class="flex flex-col items-center">
+            <a href="{% url 'create_room' %}" class="flex flex-col items-center action-button" aria-label="Create a Meeting">
                 <div class="bg-gray-800 text-white rounded-full w-24 h-24 flex items-center justify-center mb-2">
                     <!-- Plus icon for creating a meeting -->
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -22,7 +22,7 @@
             </a>
             
             <!-- Join a Meeting Button -->
-            <a href="" class="flex flex-col items-center">
+            <a href="{% url 'join_room'%}" class="flex flex-col items-center action-button" aria-label="Join a Meeting">
                 <div class="bg-gray-800 text-white rounded-full w-24 h-24 flex items-center justify-center mb-2">
                     <!-- Video camera icon for joining a meeting -->
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -35,13 +35,45 @@
 
         <!-- Smaller Logout Button -->
         <div class="flex justify-center mt-10">
-            <a href="{% url 'logout' %}" class="bg-gray-800 text-white text-sm px-4 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all duration-300">
+            <a href="{% url 'logout' %}" class="bg-red-600 text-white text-sm px-4 py-2 rounded-full shadow-md flex items-center gap-2 hover:bg-red-500 transition-all duration-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6-4v8" />
+                </svg>
                 Logout
             </a>
         </div>
     </div>
 
+    <style>
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeInUp 0.4s ease forwards;
+        }
+
+        .action-button {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .action-button:hover {
+            transform: scale(1.02); /* Slight scaling for interactivity */
+        }
+        
+        /* Optional: Improve focus styles for accessibility */
+        .action-button:focus {
+            outline: 2px solid #3b82f6; /* Blue outline for accessibility */
+            outline-offset: 4px;
+        }
+    </style>
+
 </body>
-
-
 {% endblock %}

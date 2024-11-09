@@ -10,6 +10,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .models import Room, UserProfile
 from django.contrib import messages
+from django.utils import timezone
 import uuid
 
 def home_view(request):
@@ -67,7 +68,6 @@ def login_view(request):
     return render(request, "app/login.html")
 
 
-
 def logout_view(request):
     logout(request)
     return redirect("home")
@@ -77,7 +77,14 @@ def logout_view(request):
 def dashboard_view(request):
     if not request.user.is_authenticated:
         return redirect("login")  # Redirect to login if not authenticated
-    return render(request, "app/dashboard.html")
+    current_hour = timezone.now().hour
+    if current_hour < 12:
+        greeting_time = 'morning'
+    elif current_hour < 18:
+        greeting_time = 'afternoon'
+    else:
+        greeting_time = 'evening'
+    return render(request, 'app/dashboard.html', {'greeting_time': greeting_time})
 
 
 # room creation
@@ -95,12 +102,8 @@ def create_room_view(request):
     
     return render(request, "app/create_room.html")
 
+
 # View to join a room
 @login_required
-def join_room_view(request, room_id):
-    room = get_object_or_404(Room, id=room_id)
-    if request.user not in room.participants.all() and request.user != room.host:
-        room.participants.add(request.user)
-        room.save()
-        messages.success(request, f"You have successfully joined the room '{room.name}'!")
-    return render(request, "app/room.html", {"room": room})
+def join_room_view(request):
+    return render(request, "app/join_room.html" )
