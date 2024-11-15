@@ -29,12 +29,12 @@ def get_presigned_url(request):
 
         filename = data.get('filename')
         videoName = filename[:-4]
-        extension = filename[-3:]
+        extension = 'ts'
 
         chunk_number = data.get('chunkNumber')
 
         #Generate the chunk filename with chunk number
-        chunk_filename = f"{videoName}_part{chunk_number}.{extension}"
+        chunk_filename = f"{videoName}_{chunk_number:04d}.{extension}"
 
         # Generate a presigned URL for this chunk
         presigned_url = s3_client.generate_presigned_url(
@@ -42,7 +42,7 @@ def get_presigned_url(request):
             Params={
                 'Bucket': os.environ['BUCKET_NAME'],
                 'Key': f"{videoName}/{chunk_filename}",
-                'ContentType': 'video/mp4'
+                'ContentType': 'video/mp2t'
             },
             ExpiresIn=180
         )
