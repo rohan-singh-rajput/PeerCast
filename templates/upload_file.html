@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="en">
     <head>
         <meta charset="UTF-8">
@@ -13,92 +14,129 @@
         <div id="log"></div>
 
         <script>
-            // Import necessary functions from FFmpeg WASM
-            const { createFFmpeg, fetchFile } = FFmpeg;
-            const ffmpeg = createFFmpeg({ log: true });  // Create an FFmpeg instance with logging enabled
-            const logDiv = document.getElementById('log');  // Reference to the log div for displaying messages
-    
-            // Function to load FFmpeg WASM, called before processing begins
-            async function loadFFmpeg() {
-                if (!ffmpeg.isLoaded()) {
-                    await ffmpeg.load();  // Load FFmpeg if not already loaded
-                }
+// Import necessary functions from FFmpeg WASM
+    const { createFFmpeg, fetchFile } = FFmpeg;
+    const ffmpeg = createFFmpeg({ log: true });  // Create an FFmpeg instance with logging enabled
+    const logDiv = document.getElementById('log');  // Reference to the log div for displaying messages
+
+    // Function to load FFmpeg WASM, called before processing begins
+    async function loadFFmpeg() {
+        if (!ffmpeg.isLoaded()) {
+            await ffmpeg.load();  // Load FFmpeg if not already loaded
+        }
+    }
+
+    // Function to sleep for a specified time (milliseconds)
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // Function to upload a chunk to S3 using the presigned URL
+    async function uploadToS3(presignedUrl, chunkBlob) {
+        await fetch(presignedUrl, {
+            method: 'PUT',
+            body: chunkBlob,
+            headers: {
+                'Content-Type': 'video/mp2t'     // Ensure content type matches video
             }
-    
-            // Event listener for the upload button
-            document.getElementById('uploadButton').onclick = async () => {
-                const videoinput = document.getElementById('videoInput');
-                if (!videoinput.files.length) {  // Ensure a file is selected
-                    alert("Please select a video file first.");
-                    return;
-                }
-    
-                const file = videoinput.files[0];  // Get the selected file
-                await loadFFmpeg();  // Load FFmpeg
-                console.log("FFmpeg loaded");
-    
-                // Read the video file and write it to FFmpeg's in-memory filesystem
-                ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
-    
-                // Segment the video into 5-second chunks with FFmpeg command
-                await ffmpeg.run(
-                    '-i', 'input.mp4',       // Input file name
-                    '-f', 'segment',         // Format as segments
-                    '-segment_time', '5',    // Duration of each segment
-                    '-c', 'copy',            // Copy codec to avoid re-encoding
-                    'output%03d.mp4'         // Output pattern for chunked files (e.g., output001.mp4)
-                );
-    
-                // Loop through each generated chunk and upload it
-                let chunkIndex = 0;
-                while (true) {
-                    // Generate filename for each chunk
-                    const chunkFilename = `output${chunkIndex.toString().padStart(3, '0')}.mp4`;
-                    
-                    try {
-                        // Read each chunk file from FFmpeg's filesystem
-                        const data = ffmpeg.FS('readFile', chunkFilename);
-                        const chunkBlob = new Blob([data.buffer], { type: 'video/mp4' });  // Convert to Blob format
-    
-                        // Send chunk filename and index to Django backend to get a presigned URL
-                        const response = await fetch(`{% url 'get_presigned_url' %}`, {
-                            method: 'POST',
-                            headers: { 
-                                'Content-Type': 'application/json', 
-                                'X-CSRFToken': '{{ csrf_token }}'  // CSRF token for Django POST requests
-                            },
-                            body: JSON.stringify({
-                                filename: chunkFilename,
-                                chunkNumber: chunkIndex
-                            })
-                        });
-    
-                        // Extract the presigned URL from the backend response
-                        const { presigned_url } = await response.json();
+        });
+    }
+
+    // Event listener for the upload button
+    document.getElementById('uploadButton').onclick = async () => {
+        const videoinput = document.getElementById('videoInput');
+        if (!videoinput.files.length) {  // Ensure a file is selected
+            alert("Please select a video file first.");
+            return;
+        }
+
+        const file = videoinput.files[0];  // Get the selected file
+        await loadFFmpeg();  // Load FFmpeg
+        console.log("FFmpeg loaded");
+
+        // Write the video file to FFmpeg's in-memory filesystem
+        ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
+
+        // Variables to keep track of processing state
+        let lastUploadedChunkIndex = -1;  // Index of the last uploaded chunk
+        let ffmpegFinished = false;       // Flag to indicate if FFmpeg processing is finished
+
+        // Start FFmpeg command to process the video into chunks
+        const ffmpegPromise = ffmpeg.run(
+            '-i', 'input.mp4',                                  // Input file name
+            '-c:v', 'libx264',                                  // Encode video using H.264 codec
+            '-preset', 'ultrafast',                             // Use fast preset for quicker encoding
+            '-c:a', 'aac',                                      // Encode audio using AAC codec
+            '-b:a', '128k',                                     // Set audio bitrate to 128 kbps                                
+            '-force_key_frames', 'expr:gte(t,n_forced*5)',      // Force keyframes every 5 seconds
+            '-f', 'hls',                                        // Use HLS format
+            '-hls_time', '5',                                   // Segment duration of 5 seconds
+            '-hls_playlist_type', 'event',                      // VOD playlist type
+            '-hls_flags', 'independent_segments',               // Ensure each segment is independent
+            '-hls_segment_filename', 'output%03d.ts',           // Output pattern for HLS segments (e.g., output000.ts)
+            'playlist.m3u8'                                     // Output HLS playlist
+        ).then(() => {
+            ffmpegFinished = true;                              // Set flag when FFmpeg processing is complete
+            // Handle the generated files
+        });
+
+        // Function to monitor FFmpeg's filesystem for new chunks and upload them
+        const monitorChunks = async () => {
+            while (true) {
+                // Calculate the next chunk index
+                const chunkIndex = lastUploadedChunkIndex + 1;
+                const chunkFilename = `output${chunkIndex.toString().padStart(3, '0')}.ts`;
+
+                try {
+                    // Attempt to read the next chunk file from FFmpeg's filesystem
+                    const data = ffmpeg.FS('readFile', chunkFilename);
+                    const chunkBlob = new Blob([data.buffer], { type: 'video/mp2t' });  // Convert to Blob format
+
+                    // Send chunk filename and index to Django backend to get a presigned URL
+                    const response = await fetch(`{% url 'get_presigned_url' %}`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json', 
+                            'X-CSRFToken': '{{ csrf_token }}'  // CSRF token for Django POST requests
+                        },
+                        body: JSON.stringify({
+                            filename: file.name,
+                            chunkNumber: chunkIndex
+                        })
+                    });
+
+                    // Extract the presigned URL from the backend response
+                    const { presigned_url } = await response.json();
+
+                    // Upload the chunk to S3 using the presigned URL
+                    await uploadToS3(presigned_url, chunkBlob);
+
+                    // Log the successful upload of each chunk
+                    logDiv.innerHTML += `Uploaded chunk: ${chunkFilename}<br>`;
+                    lastUploadedChunkIndex = chunkIndex;  // Update the last uploaded chunk index
+                } catch (e) {
+                    // If the file doesn't exist yet
+                    if (ffmpegFinished) {
+                        // If FFmpeg has finished processing and no more chunks are available, exit the loop
                         
-                        // Upload the chunk to S3 using the presigned URL
-                        await uploadToS3(presigned_url, chunkBlob);
-    
-                        // Log the successful upload of each chunk
-                        logDiv.innerHTML += `Uploaded chunk: ${chunkFilename}<br>`;
-                        chunkIndex += 1;  // Move to the next chunk
-                    } catch (e) {
-                        // Break the loop if no more chunks are available
+                        // __TODO__
+                        // create endlist file and upload to s3 after uploading all chunks
                         break;
                     }
+                    // Wait for a short interval before checking again
+                    await sleep(500);  // Wait for 500 milliseconds
                 }
-            };
-
-            async function uploadToS3(presignedUrl, chunkBlob)
-            {
-                await fetch(presignedUrl, {
-                    method: 'PUT',
-                    body: chunkBlob,
-                    headers: {
-                        'Content-Type': 'video/mp4'     // Ensure content type matches video
-                    }
-                });
             }
-        </script>
-    </body>
-</html>
+        };
+
+        // Start both FFmpeg processing and chunk monitoring concurrently
+        await Promise.all([
+            ffmpegPromise,
+            monitorChunks()
+        ]);
+
+        console.log("Processing and uploading complete.");
+    };
+</script>
+</body>
+</html>    
