@@ -1,75 +1,190 @@
 {% extends 'base.html' %}
 {% block content %}
-<body class="bg-gray-50 font-sans text-gray-800">
-    <div class="container mx-auto mt-20 max-w-lg">
-        <h1 class="text-3xl font-bold text-center mb-8">Create a Room</h1>
-        <form id="uploadForm" method="post" enctype="multipart/form-data">
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+    <div class="max-w-lg w-full bg-white rounded-lg shadow-lg p-8">
+        <h1 class="text-3xl font-semibold text-gray-900 text-center mb-6">Create a New Room</h1>
+
+        <!-- Display Messages -->
+        {% if messages %}
+        <div class="mb-4">
+            {% for message in messages %}
+            <div class="p-2 rounded-lg {% if message.tags == 'success' %}bg-green-200 text-green-800{% else %}bg-red-200 text-red-800{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Room Creation Form -->
+        <form method="post" id="room-form">
             {% csrf_token %}
-            <div class="mb-4">
-                <label class="block text-gray-700 font-semibold mb-2" for="room_name">Room Name</label>
-                <input type="text" name="room_name" id="room_name" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter room name" required>
-            </div>
-            <div class="mb-4">
-                <label class="block text-gray-700 font-semibold mb-2" for="video">Upload Video</label>
-                <input type="file" name="video" id="video" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" accept="video/*" required>
-            </div>
-            <button type="submit" class="bg-gray-900 text-white px-6 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all duration-300 w-full">Create Room & Upload Video</button>
+            {{ form.as_p }}
+            <input type="hidden" id="video-url-input" name="video_url">
+
+            <!-- Video Upload Section -->
+            <h2 class="text-xl font-semibold mt-6 mb-2">Upload Video</h2>
+            <input type="file" id="videoInput" accept="video/*" class="w-full p-2 border border-gray-300 rounded-lg">
+            <button type="button" id="uploadButton" class="w-full bg-blue-600 text-white py-2 rounded-lg mt-4 hover:bg-blue-500 transition-all">
+                Upload and Chunk Video
+            </button>
+
+            <!-- Submit Button -->
+            <button type="submit" id="submit-btn" class="w-full bg-gray-900 text-white py-3 rounded-lg mt-4 hover:bg-gray-800 transition-all" disabled>
+                Create Room
+            </button>
         </form>
-
-        <!-- Progress Bar -->
-        <div id="progressContainer" class="hidden mt-4">
-            <label class="block text-gray-700 font-semibold mb-2">Upload Progress</label>
-            <div class="w-full bg-gray-200 rounded-full">
-                <div id="progressBar" class="bg-blue-600 text-xs font-medium text-blue-100 text-center p-0.5 leading-none rounded-full" style="width: 0%;">0%</div>
-            </div>
-        </div>
-
-        <!-- Shareable Link -->
-        <div id="roomLinkContainer" class="hidden mt-4">
-            <label class="block text-gray-700 font-semibold mb-2">Shareable Room Link</label>
-            <a id="roomLink" href="#" class="text-blue-600 hover:underline break-all"></a>
-        </div>
+        <div id="log" class="mt-4 text-sm text-gray-600"></div>
     </div>
 
     <script>
-        document.getElementById('uploadForm').addEventListener('submit', function(event) {
-            event.preventDefault(); // Prevent form submission
-            
-            const formData = new FormData();
-            formData.append('room_name', document.getElementById('room_name').value);
-            formData.append('video', document.getElementById('video').files[0]);
+    const { createFFmpeg, fetchFile } = FFmpeg;
+    const ffmpeg = createFFmpeg({ log: true });  // Create an FFmpeg instance with logging enabled
+    const logDiv = document.getElementById('log');  // Reference to the log div for displaying messages
 
-            const progressContainer = document.getElementById('progressContainer');
-            const progressBar = document.getElementById('progressBar');
-            const roomLinkContainer = document.getElementById('roomLinkContainer');
-            const roomLink = document.getElementById('roomLink');
+    // Function to load FFmpeg WASM, called before processing begins
+    async function loadFFmpeg() {
+        if (!ffmpeg.isLoaded()) {
+            await ffmpeg.load();  // Load FFmpeg if not already loaded
+        }
+    }
 
-            progressContainer.classList.remove('hidden');
-            
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', '{% url "create_room" %}', true);
-            
-            xhr.upload.addEventListener('progress', function(event) {
-                if (event.lengthComputable) {
-                    const percentComplete = Math.round((event.loaded / event.total) * 100);
-                    progressBar.style.width = percentComplete + '%';
-                    progressBar.textContent = percentComplete + '%';
-                }
-            });
+    // Function to sleep for a specified time (milliseconds)
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
 
-            xhr.onload = function() {
-                if (xhr.status === 200) {
-                    const response = JSON.parse(xhr.responseText);
-                    roomLink.href = response.room_url;
-                    roomLink.textContent = response.room_url;
-                    roomLinkContainer.classList.remove('hidden');
-                } else {
-                    alert('An error occurred during the upload.');
-                }
-            };
-
-            xhr.send(formData);
+    // Function to upload a chunk to S3 using the presigned URL
+    async function uploadToS3(presignedUrl, chunkBlob) {
+        await fetch(presignedUrl, {
+            method: 'PUT',
+            body: chunkBlob,
+            headers: {
+                'Content-Type': 'video/mp2t'     // Ensure content type matches video
+            }
         });
+    }
+
+    // Event listener for the upload button
+    document.getElementById('uploadButton').onclick = async () => {
+        const videoinput = document.getElementById('videoInput');
+        if (!videoinput.files.length) {  // Ensure a file is selected
+            alert("Please select a video file first.");
+            return;
+        }
+        const videoInput = document.getElementById('videoInput');
+        const videoUrlInput = document.getElementById('video-url-input');
+        const submitBtn = document.getElementById('submit-btn');
+
+        const file = videoinput.files[0];  // Get the selected file
+        await loadFFmpeg();  // Load FFmpeg
+        console.log("FFmpeg loaded");
+        videoUrlInput.value = `https://output-hls-bucket.s3.ap-south-1.amazonaws.com/${file.name.replace(".mp4", "")}/master.m3u8`; // Update dynamically
+        submitBtn.disabled = false;  // Enable submit button after upload
+
+        // Write the video file to FFmpeg's in-memory filesystem
+        ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
+
+        const invokeStepMachine = await fetch(`{% url 'invoke_step_function' %}`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'X-CSRFToken': '{{ csrf_token }}'  // CSRF token for Django POST requests
+            },
+            body: JSON.stringify({
+                filename: file.name
+            })
+        });
+
+        // Variables to keep track of processing state
+        let lastUploadedChunkIndex = -1;  // Index of the last uploaded chunk
+        let ffmpegFinished = false;       // Flag to indicate if FFmpeg processing is finished
+
+        // Start FFmpeg command to process the video into chunks
+        const ffmpegPromise = ffmpeg.run(
+            '-i', 'input.mp4',                                  // Input file name
+            '-c:v', 'libx264',                                  // Encode video using H.264 codec
+            '-preset', 'ultrafast',                             // Use fast preset for quicker encoding
+            '-c:a', 'aac',                                      // Encode audio using AAC codec
+            '-b:a', '128k',                                     // Set audio bitrate to 128 kbps                                
+            '-force_key_frames', 'expr:gte(t,n_forced*5)',      // Force keyframes every 5 seconds
+            '-f', 'hls',                                        // Use HLS format
+            '-hls_time', '5',                                   // Segment duration of 5 seconds
+            '-hls_playlist_type', 'event',                      // VOD playlist type
+            '-hls_flags', 'independent_segments',               // Ensure each segment is independent
+            '-hls_segment_filename', 'output%03d.ts',           // Output pattern for HLS segments (e.g., output000.ts)
+            'playlist.m3u8'                                     // Output HLS playlist
+        ).then(() => {
+            ffmpegFinished = true;                              // Set flag when FFmpeg processing is complete
+            // Handle the generated files
+        });
+
+        // Function to monitor FFmpeg's filesystem for new chunks and upload them
+        const monitorChunks = async () => {
+            while (true) {
+                // Calculate the next chunk index
+                const chunkIndex = lastUploadedChunkIndex + 1;
+                const chunkFilename = `output${chunkIndex.toString().padStart(3, '0')}.ts`;
+
+                try {
+                    // Attempt to read the next chunk file from FFmpeg's filesystem
+                    const data = ffmpeg.FS('readFile', chunkFilename);
+                    const chunkBlob = new Blob([data.buffer], { type: 'video/mp2t' });  // Convert to Blob format
+
+                    // Send chunk filename and index to Django backend to get a presigned URL
+                    const response = await fetch(`{% url 'get_presigned_url' %}`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json', 
+                            'X-CSRFToken': '{{ csrf_token }}'  // CSRF token for Django POST requests
+                        },
+                        body: JSON.stringify({
+                            filename: file.name,
+                            chunkNumber: chunkIndex
+                        })
+                    });
+
+                    // Extract the presigned URL from the backend response
+                    const { presigned_url } = await response.json();
+
+                    // Upload the chunk to S3 using the presigned URL
+                    await uploadToS3(presigned_url, chunkBlob);
+
+                    // Log the successful upload of each chunk
+                    logDiv.innerHTML += `Uploaded chunk: ${chunkFilename}<br>`;
+                    lastUploadedChunkIndex = chunkIndex;  // Update the last uploaded chunk index
+                } catch (e) {
+                    // If the file doesn't exist yet
+                    if (ffmpegFinished) {
+                        // If FFmpeg has finished processing and no more chunks are available, exit the loop
+                        
+                        // __TODO__
+                        const invokeStepMachine = await fetch(`{% url 'invoke_endlist' %}`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json', 
+                                'X-CSRFToken': '{{ csrf_token }}'  // CSRF token for Django POST requests
+                            },
+                            body: JSON.stringify({
+                                filename: file.name
+                            })
+                        });
+                        // create endlist file and upload to s3 after uploading all chunks
+                        break;
+                    }
+                    // Wait for a short interval before checking again
+                    await sleep(500);  // Wait for 500 milliseconds
+                }
+            }
+        };
+
+        // Start both FFmpeg processing and chunk monitoring concurrently
+        await Promise.all([
+            ffmpegPromise,
+            monitorChunks()
+        ]);
+
+        console.log("Processing and uploading complete.");
+    };
     </script>
 </body>
 {% endblock %}

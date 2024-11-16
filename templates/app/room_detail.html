@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<body class="bg-black min-h-screen flex justify-center items-center text-white">
+    <div class="relative flex-1 bg-black bg-opacity-90 h-screen">
+        <video id="hls-video" controls autoplay class="absolute inset-0 w-full h-full object-cover rounded-lg shadow-lg">
+            Your browser does not support the video tag.
+        </video>
+    </div>
+
+    <!-- Chat and Participants Section -->
+    <div class="relative w-1/3 h-screen flex flex-col backdrop-blur-lg bg-white bg-opacity-10 shadow-xl rounded-lg">
+        <div class="flex items-center justify-between p-4 rounded-t-lg">
+            <h2 class="text-lg font-bold">Watch Party</h2>
+            <div class="flex items-center space-x-4">
+                <button id="participants-btn" class="px-3 py-1 border border-white text-sm rounded-full hover:bg-white hover:text-black transition">
+                    {{ room.participants.count }} {{ room.participants.count|pluralize:"Person,People" }}
+                </button>
+                <button onclick="copyToClipboard('{{ request.build_absolute_uri }}')" class="px-3 py-1 border border-white text-sm rounded-full hover:bg-white hover:text-black transition">
+                    Copy Link
+                </button>
+            </div>
+            
+            
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4" id="chat-messages"></div>
+
+        <div class="p-4 flex justify-between items-center">
+            <input id="chat-message-input" type="text" placeholder="Type a message..." class="flex-1 p-2 bg-black text-white rounded-full border border-white placeholder-gray-400 focus:ring focus:ring-white focus:outline-none">
+            <button id="chat-message-submit" class="ml-4 px-4 py-2 bg-black border border-white text-white rounded-full hover:bg-white hover:text-black transition">
+                Send
+            </button>
+        </div>
+
+        <!-- Footer Options -->
+        <div class="flex justify-between p-4">
+            <form method="POST" action="{% url 'close_room' room.slug %}">
+                {% csrf_token %}
+                <button type="submit" class="px-4 py-2 border border-red-600 text-red-600 rounded-full hover:bg-red-600 hover:text-white transition">
+                    Close Room
+                </button>
+            </form>
+            <a href="{% url 'logout' %}" class="px-4 py-2 border border-white text-white rounded-full hover:bg-white hover:text-black transition">
+                Logout
+            </a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const video = document.getElementById('hls-video');
+            const videoUrl = "{{ room.video_url }}";
+
+            if (Hls.isSupported()) {
+                const hls = new Hls();
+                hls.loadSource(videoUrl);
+                hls.attachMedia(video);
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = videoUrl;
+            }
+
+            const chatSocket = new WebSocket(
+                'ws://' + window.location.host + '/ws/room/{{ room.slug }}/'
+            );
+
+            chatSocket.onmessage = function(e) {
+                const data = JSON.parse(e.data);
+                const messages = document.getElementById('chat-messages');
+                const messageElement = `<p><strong>${data.username}:</strong> ${data.message}</p>`;
+                messages.innerHTML += messageElement;
+                messages.scrollTop = messages.scrollHeight;
+            };
+
+            chatSocket.onclose = function(e) {
+                console.error('Chat socket closed unexpectedly');
+            };
+
+            document.querySelector('#chat-message-input').focus();
+            document.querySelector('#chat-message-input').onkeyup = function(e) {
+                if (e.keyCode === 13) {  // Enter key
+                    document.querySelector('#chat-message-submit').click();
+                }
+            };
+
+            document.querySelector('#chat-message-submit').onclick = function(e) {
+                const messageInput = document.querySelector('#chat-message-input');
+                const message = messageInput.value;
+                chatSocket.send(JSON.stringify({
+                    'message': message
+                }));
+                messageInput.value = '';
+            };
+        });
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('Link copied to clipboard!');
+            });
+        }
+        
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.className = 'fixed top-5 right-5 bg-white text-black px-4 py-3 rounded-lg shadow-lg';
+            document.body.appendChild(toast);
+        
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+        
+    </script>
+
+</body>
+
+{% endblock %}

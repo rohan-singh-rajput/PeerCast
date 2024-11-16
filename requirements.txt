@@ -6,6 +6,12 @@ django-dotenv
 boto3
 botocore
 django-ratelimit
+python-slugify
+celery
+redis
+django-cors-headers
+channels
+channels-redis
 
 
 tailwindcss
