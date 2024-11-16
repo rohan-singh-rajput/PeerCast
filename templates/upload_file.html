@@ -57,6 +57,17 @@
         // Write the video file to FFmpeg's in-memory filesystem
         ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
 
+        const invokeStepMachine = await fetch(`{% url 'invoke_step_function' %}`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'X-CSRFToken': '{{ csrf_token }}'  // CSRF token for Django POST requests
+                    },
+                    body: JSON.stringify({
+                        filename: file.name
+                    })
+                });
+
         // Variables to keep track of processing state
         let lastUploadedChunkIndex = -1;  // Index of the last uploaded chunk
         let ffmpegFinished = false;       // Flag to indicate if FFmpeg processing is finished
@@ -120,6 +131,16 @@
                         // If FFmpeg has finished processing and no more chunks are available, exit the loop
                         
                         // __TODO__
+                        const invokeStepMachine = await fetch(`{% url 'invoke_endlist' %}`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json', 
+                                'X-CSRFToken': '{{ csrf_token }}'  // CSRF token for Django POST requests
+                            },
+                            body: JSON.stringify({
+                                filename: file.name
+                            })
+                        });
                         // create endlist file and upload to s3 after uploading all chunks
                         break;
                     }
