@@ -10,7 +10,7 @@ python-slugify
 celery
 redis
 django-cors-headers
-channels
+channels==3.0.5
 channels-redis
 
 

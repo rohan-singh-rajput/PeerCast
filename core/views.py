@@ -323,11 +323,12 @@ def update_endlist_db(request):
     try:
         data = json.loads(request.body)
         filename = data.get('filename')
+        chunk_no = data.get('chunkIndex')
         video_name = filename[:-4]
         response = metadata_db.put_item(
             Item={
                 'video_name': video_name,
-                'chunkno_reso': '99999',
+                'chunkno_reso': str(chunk_no) + '9',
                 'url': 'ENDLIST',
                 'is_added': False
             }

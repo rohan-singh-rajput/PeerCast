@@ -158,14 +158,15 @@
                         // If FFmpeg has finished processing and no more chunks are available, exit the loop
                         
                         // __TODO__
-                        const invokeStepMachine = await fetch(`{% url 'invoke_endlist' %}`, {
+                        const invokeEndList = await fetch(`{% url 'invoke_endlist' %}`, {
                             method: 'POST',
                             headers: { 
                                 'Content-Type': 'application/json', 
                                 'X-CSRFToken': '{{ csrf_token }}'  // CSRF token for Django POST requests
                             },
                             body: JSON.stringify({
-                                filename: file.name
+                                filename: file.name,
+                                chunkIndex: chunkIndex
                             })
                         });
                         // create endlist file and upload to s3 after uploading all chunks
