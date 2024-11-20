@@ -1,6 +1,6 @@
 # PeerCast  
 
-PeerCast is a real-time video streaming application that enables private room creation, live video synchronization, and a dynamic chat experience. The platform supports video chunk uploads to AWS S3, transcoding for adaptive streaming, and seamless video playback with room-based controls.
+PeerCast is a real-time video streaming application that enables private room creation, live video stream, and a dynamic chat experience. The platform supports video chunk uploads to AWS S3, transcoding for adaptive streaming, and seamless video playback with room-based controls.
 
 ---
 
