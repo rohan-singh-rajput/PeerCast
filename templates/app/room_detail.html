@@ -67,47 +67,36 @@
 
             chatSocket.onmessage = function(e) {
                 const data = JSON.parse(e.data);
+                const messages = document.getElementById('chat-messages');
 
-                // const messages = document.getElementById('chat-messages');
-                // const messageElement = `<p><strong>${data.username}:</strong> ${data.message}</p>`;
-                // messages.innerHTML += messageElement;
-                // messages.scrollTop = messages.scrollHeight;
-                
                 if (data.type === 'history') {
                     // Load message history
-                    const messages = document.getElementById('chat-messages');
                     messages.innerHTML = ''; // Clear existing messages
                     data.messages.forEach(msg => {
-                        const messageElement = `
-                            <div class="my-2 p-2 bg-black text-white rounded-lg shadow">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <strong>${msg.username}:</strong> ${msg.message}
-                                    </div>
-                                    <small class="text-gray-400 text-xs ml-2 shrink-0">${new Date(msg.timestamp).toLocaleTimeString()}</small>
-                                </div>
-                            </div>
-                        `;
+                        const messageElement = createMessageElement(msg.username, msg.message, msg.timestamp);
                         messages.innerHTML += messageElement;
                     });
-                    messages.scrollTop = messages.scrollHeight;
                 } else {
                     // Handle new messages
-                    const messages = document.getElementById('chat-messages');
-                    const messageElement = `
-                        <div class="my-2 p-2 bg-black text-white rounded-lg shadow">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <strong>${data.username}:</strong> ${data.message}
-                                </div>
-                                <small class="text-gray-400 text-xs ml-2 shrink-0">${new Date().toLocaleTimeString()}</small>
-                            </div>
-                        </div>
-                    `;
+                    const messageElement = createMessageElement(data.username, data.message, new Date().toISOString());
                     messages.innerHTML += messageElement;
-                    messages.scrollTop = messages.scrollHeight;
                 }
+                messages.scrollTop = messages.scrollHeight;
             };
+
+            // Helper function to create consistent message elements
+            function createMessageElement(username, message, timestamp) {
+                return `
+                    <div class="my-2 p-2 bg-black text-white rounded-lg shadow">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <strong>${username}:</strong> ${message}
+                            </div>
+                            <small class="text-gray-400 text-xs ml-2 shrink-0">${new Date(timestamp).toLocaleTimeString()}</small>
+                        </div>
+                    </div>
+                `;
+            }
 
             chatSocket.onclose = function(e) {
                 console.error('Chat socket closed unexpectedly');

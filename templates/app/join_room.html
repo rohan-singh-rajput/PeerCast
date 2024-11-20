@@ -175,30 +175,12 @@
                 // Load message history
                 messageContainer.innerHTML = ''; // Clear existing messages
                 data.messages.forEach(msg => {
-                    const messageElement = `
-                        <div class="my-2 p-2 bg-black text-white rounded-lg shadow">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <strong>${msg.username}:</strong> ${msg.message}
-                                </div>
-                                <small class="text-gray-400 text-xs ml-2 shrink-0">${new Date(msg.timestamp).toLocaleTimeString()}</small>
-                            </div>
-                        </div>
-                    `;
+                    const messageElement = createMessageElement(msg.username, msg.message, msg.timestamp);
                     messageContainer.innerHTML += messageElement;
                 });
             } else {
-                // Handle new messages
-                const messageElement = `
-                    <div class="my-2 p-2 bg-black text-white rounded-lg shadow">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <strong>${data.username}:</strong> ${msg.message}
-                            </div>
-                            <small class="text-gray-400 text-xs ml-2 shrink-0">${new Date().toLocaleTimeString()}</small>
-                        </div>
-                    </div>
-                `;
+                // Handle new messages - fixed to use data.message instead of msg.message
+                const messageElement = createMessageElement(data.username, data.message, new Date().toISOString());
                 messageContainer.innerHTML += messageElement;
             }
             messageContainer.scrollTop = messageContainer.scrollHeight;
@@ -227,6 +209,20 @@
                 document.getElementById('chat-message-submit').click();
             }
         });
+
+        // Helper function to create consistent message elements
+        function createMessageElement(username, message, timestamp) {
+            return `
+                <div class="my-2 p-2 bg-black text-white rounded-lg shadow">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <strong>${username}:</strong> ${message}
+                        </div>
+                        <small class="text-gray-400 text-xs ml-2 shrink-0">${new Date(timestamp).toLocaleTimeString()}</small>
+                    </div>
+                </div>
+            `;
+        }
     </script>
 
 </body>
