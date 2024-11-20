@@ -23,7 +23,7 @@ PeerCast is a real-time video streaming application that enables private room cr
 - **Backend**: Django-based APIs with WebSocket support for real-time communication  
 - **Database**: PostgreSQL for user data and room details  
 - **Storage**: AWS S3 for video file storage  
-- **Transcoding**: AWS Lambda for video processing into HLS/DASH formats  
+- **Transcoding**: AWS Lambda for video processing into HLS format
 - **Chat Service**: Websocket and redis for scalability
 - **Hosting**: AWS EC2 instances  
 
