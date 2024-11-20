@@ -147,16 +147,15 @@ def close_room(request, slug):
 def join_room_view(request, slug):
     room = get_object_or_404(Room, slug=slug)
     
-    # Add the current user to participants if not already in
+    # Add user as participant if not already added
     if request.user not in room.participants.all():
         room.participants.add(request.user)
+        room.save()
     
-    participants = room.participants.all()  # Fetch all participants dynamically
-
-    return render(request, 'app/join_room.html', {
+    context = {
         'room': room,
-        'participants': participants,  # Pass participants to the template
-    })
+    }
+    return render(request, 'app/join_room.html', context)
 
 
 def join_room_via_link(request):

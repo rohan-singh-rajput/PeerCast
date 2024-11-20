@@ -71,10 +71,21 @@ class UserProfile(AbstractBaseUser, PermissionsMixin):
 class Room(models.Model):
     name = models.CharField(max_length=255)
     slug = models.SlugField(unique=True, default=uuid.uuid4, editable=False)
-    host = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='hosted_rooms')
+    host = models.ForeignKey(
+        UserProfile, 
+        on_delete=models.CASCADE, 
+        related_name='hosted_rooms',
+        null=True
+    )
     participants = models.ManyToManyField(UserProfile, related_name='joined_rooms', blank=True)
     video_url = models.URLField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    owner = models.ForeignKey(
+        UserProfile, 
+        on_delete=models.CASCADE, 
+        related_name='owned_rooms',
+        null=True
+    )
 
     def __str__(self):
         return self.name
@@ -91,3 +102,15 @@ class ChatMessage(models.Model):
 
     def __str__(self):
         return f"{self.user.username}: {self.message[:20]}"
+
+
+
+# new message model
+class Message(models.Model):
+    room = models.ForeignKey('Room', on_delete=models.CASCADE, related_name='messages')
+    user = models.ForeignKey('UserProfile', on_delete=models.CASCADE)
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['timestamp']
