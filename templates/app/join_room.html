@@ -63,6 +63,19 @@
                 Send
             </button>
         </div>
+
+        <!-- Footer Options -->
+        <div class="flex justify-between p-4">
+            <form method="POST" action="{% url 'close_room' room.slug %}">
+                {% csrf_token %}
+                <button type="submit" class="px-4 py-2 border border-red-600 text-red-600 rounded-full hover:bg-red-600 hover:text-white transition">
+                    Close Room
+                </button>
+            </form>
+            <a href="{% url 'logout' %}" class="px-4 py-2 border border-white text-white rounded-full hover:bg-white hover:text-black transition">
+                Logout
+            </a>
+        </div>
     </div>
 
     <!-- HLS Script -->
