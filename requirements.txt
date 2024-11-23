@@ -12,6 +12,7 @@ redis
 django-cors-headers
 channels==3.0.5
 channels-redis
-
+aioredis
+asyncio
 
 tailwindcss

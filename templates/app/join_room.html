@@ -1,243 +1,237 @@
 {% extends 'base.html' %}
 {% block content %}
-
 <body class="bg-black min-h-screen flex justify-center items-center text-white">
-
-    <!-- Toast Notification -->
-    <div id="toast" class="fixed top-5 right-5 bg-white text-black px-4 py-3 rounded-lg shadow-lg hidden">
-        <p id="toast-message" class="text-sm font-medium"></p>
-    </div>
-
-    <!-- Video Section -->
-    <div class="relative flex-1 bg-black h-screen">
-        <video id="hls-video" controls autoplay class="absolute inset-0 w-full h-full object-cover rounded-lg shadow-lg">
-            Your browser does not support the video tag.
-        </video>
-    </div>
-
-    <!-- Chat and Participants Section -->
-    <div class="relative w-1/3 h-screen flex flex-col backdrop-blur-lg bg-black bg-opacity-20 shadow-xl rounded-lg">
-
-        <!-- Header for Chat and Participants -->
-        <div class="flex items-center justify-between p-4 rounded-t-lg">
-            <h2 class="text-lg font-bold">Watch Party</h2>
-            <div class="flex items-center space-x-4">
-                <button id="participants-btn" class="px-3 py-1 border border-white text-sm rounded-full hover:bg-white hover:text-black transition">
-                    {{ room.participants.count }} {{ room.participants.count|pluralize:"Person,People" }}
-                </button>
-                <button onclick="copyToClipboard('{{ request.build_absolute_uri }}')" class="px-3 py-1 border border-white text-sm rounded-full hover:bg-white hover:text-black flex items-center gap-1 transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7h4M15 10h3m0 1h-4M12 7v10m0-4h1m-1-2h-4m0 1H8M8 7h2m-1 4h-4" />
-                    </svg>
-                    Share Link
-                </button>
-            </div>
-        </div>
-
-        <!-- Collapsible Participants List -->
-        <div id="participants-list" class="hidden p-4 overflow-y-auto">
-            <h3 class="text-lg font-semibold mb-4">Participants</h3>
-            <ul class="space-y-2">
-                {% if room.participants.all %}
-                    {% for participant in room.participants.all %}
-                        <li class="flex items-center space-x-4 p-2 rounded-lg shadow-md bg-white text-black">
-                            <div class="h-8 w-8 bg-black text-white rounded-full flex items-center justify-center font-bold uppercase">
-                                {{ participant.username|slice:":1" }}
-                            </div>
-                            <span>{{ participant.username }}</span>
-                        </li>
-                    {% endfor %}
-                {% else %}
-                    <li class="text-gray-400">No participants yet.</li>
-                {% endif %}
-            </ul>
-        </div>
-
-        <div id="chat-messages" class="flex-1 overflow-y-auto p-4">
-            <!-- Messages will be dynamically appended here -->
-        </div>
-        
-        <div class="p-2 flex justify-between items-center">
-            <input id="chat-message-input" type="text" placeholder="Type a message..." class="flex-1 p-2 bg-black text-white rounded-full border border-white" required>
-            <button id="chat-message-submit" class="ml-4 px-4 py-2 bg-black border border-white text-white rounded-full hover:bg-white hover:text-black transition">
-                Send
+   <!-- Toast Notification -->
+   <div id="toast" class="fixed top-10 right-5 bg-white text-black px-4 py-3 rounded-lg shadow-lg hidden z-30">
+      <p id="toast-message" class="text-sm font-medium"></p>
+   </div>
+   <!-- Video Section -->
+   <div class="relative flex-1 bg-black h-screen">
+      <video id="hls-video" controls autoplay class="absolute inset-0 w-full h-full object-cover rounded-lg shadow-lg">
+         Your browser does not support the video tag.
+      </video>
+   </div>
+   <!-- Chat and Participants Section -->
+   <div class="relative w-1/3 h-screen flex flex-col backdrop-blur-lg bg-black bg-opacity-20 shadow-xl rounded-lg">
+      <!-- Header for Chat and Participants -->
+      <div class="flex items-center justify-between p-4 rounded-t-lg">
+         <h2 class="text-lg font-bold">Watch Party</h2>
+         <div class="flex items-center space-x-4">
+            <button id="participants-btn"
+               class="px-3 py-1 border border-white text-sm rounded-full hover:bg-white hover:text-black transition">
+            {{ room.participants.count }} {{ room.participants.count|pluralize:"Person,People" }}
             </button>
-        </div>
+            <button onclick="copyToClipboard('{{ request.build_absolute_uri }}')"
+               class="px-3 py-1 border border-white text-sm rounded-full hover:bg-white hover:text-black flex items-center gap-1 transition">
+               <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="20" height="20" viewBox="0 0 48 48">
+                  <path fill="#1976D2"
+                     d="M38.1,31.2L19.4,24l18.7-7.2c1.5-0.6,2.3-2.3,1.7-3.9c-0.6-1.5-2.3-2.3-3.9-1.7l-26,10C8.8,21.6,8,22.8,8,24s0.8,2.4,1.9,2.8l26,10c0.4,0.1,0.7,0.2,1.1,0.2c1.2,0,2.3-0.7,2.8-1.9C40.4,33.5,39.6,31.8,38.1,31.2z"></path>
+                  <path fill="#1E88E5"
+                     d="M11 17A7 7 0 1 0 11 31 7 7 0 1 0 11 17zM37 7A7 7 0 1 0 37 21 7 7 0 1 0 37 7zM37 27A7 7 0 1 0 37 41 7 7 0 1 0 37 27z"></path>
+               </svg>
+               Share Link
+            </button>
+         </div>
+      </div>
+      <!-- Collapsible Participants List -->
+      <div id="participants-list" class="hidden p-4 overflow-y-auto">
+         <h3 class="text-lg font-semibold mb-4">Participants</h3>
+         <ul class="space-y-2">
+            {% if room.participants.all %}
+            {% for participant in room.participants.all %}
+            <li class="flex items-center space-x-4 p-2 rounded-lg shadow-md bg-white text-black">
+               <div class="h-8 w-8 bg-black text-white rounded-full flex items-center justify-center font-bold uppercase">
+                  {{ participant.username|slice:":1" }}
+               </div>
+               <span>{{ participant.username }}</span>
+            </li>
+            {% endfor %}
+            {% else %}
+            <li class="text-gray-400">No participants yet.</li>
+            {% endif %}
+         </ul>
+      </div>
+      <div id="chat-messages" class="flex-1 overflow-y-auto p-4">
+         <!-- Messages will be dynamically appended here -->
+      </div>
+      <div class="p-2 flex justify-between items-center">
+         <input id="chat-message-input" type="text" placeholder="Type a message..."
+            class="flex-1 p-2 bg-black text-white rounded-full border border-white" required>
+         <button id="chat-message-submit"
+            class="ml-4 px-4 py-2 bg-black border border-white text-white rounded-full hover:bg-white hover:text-black transition">
+         Send
+         </button>
+      </div>
+      <!-- Footer Options -->
+      <div class="flex justify-between p-4">
+         <form method="POST" action="{% url 'close_room' room.slug %}">
+            {% csrf_token %}
+            <button type="submit"
+               class="px-4 py-2 border border-red-600 text-red-600 rounded-full hover:bg-red-600 hover:text-white transition">
+            Close Room
+            </button>
+         </form>
+         <a href="{% url 'logout' %}"
+            class="px-4 py-2 border border-white text-white rounded-full hover:bg-white hover:text-black transition">
+         Logout
+         </a>
+      </div>
+   </div>
+   <!-- HLS Script -->
+   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+   <script>
+      const isOwner = {{ is_owner|yesno:"true,false" }};
+   </script>
+   <script>
+      const roomSlug = "{{ room.slug }}";
+      const video = document.getElementById('hls-video');
+      const chatSocket = new WebSocket(`ws://${window.location.host}/ws/room/${roomSlug}/`);
+      const videoUrl = "{{ room.video_url }}";
 
-        <!-- Footer Options -->
-        <div class="flex justify-between p-4">
-            <form method="POST" action="{% url 'close_room' room.slug %}">
-                {% csrf_token %}
-                <button type="submit" class="px-4 py-2 border border-red-600 text-red-600 rounded-full hover:bg-red-600 hover:text-white transition">
-                    Close Room
-                </button>
-            </form>
-            <a href="{% url 'logout' %}" class="px-4 py-2 border border-white text-white rounded-full hover:bg-white hover:text-black transition">
-                Logout
-            </a>
-        </div>
-    </div>
+      document.addEventListener('DOMContentLoaded', function () {
+          const hls = new Hls();
 
-    <!-- HLS Script -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script>
-        // hls-video url load from database
-        document.addEventListener('DOMContentLoaded', function () {
-            const video = document.getElementById('hls-video');
-            const hls = new Hls();
-            const videoUrl = "{{ room.video_url }}";
+          if (Hls.isSupported()) {
+              hls.loadSource(videoUrl);
+              hls.attachMedia(video);
+          } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+              video.src = videoUrl;
+          }
 
-            if (Hls.isSupported()) {
-                hls.loadSource(videoUrl);
-                hls.attachMedia(video);
-            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                video.src = videoUrl;
-            }
+      // Send video sync messages (owner only)
+      function sendVideoSync(action, timestamp) {
+      socket.send(JSON.stringify({
+          type: 'video_sync',
+          action: action,
+          timestamp: timestamp,
+      }));
+      }
 
-            // Toggle Participants List
-            const participantsBtn = document.getElementById('participants-btn');
-            const participantsList = document.getElementById('participants-list');
-            
-            participantsBtn.addEventListener('click', () => {
-                participantsList.classList.toggle('hidden');
-            });
-        });
+      if (isOwner) {
+          video.addEventListener('play', () => {
+              videoSocket.send(JSON.stringify({
+              type: 'video_sync',
+              action: 'play',
+              timestamp: video.currentTime
+          }));
+      });
 
-        // Copy Room URL with Toast Notification
-        function copyToClipboard(text) {
-            navigator.clipboard.writeText(text).then(function () {
-                showToast('Room link copied!');
-            });
-        }
+      video.addEventListener('pause', () => {
+          videoSocket.send(JSON.stringify({
+              type: 'video_sync',
+              action: 'pause',
+              timestamp: video.currentTime
+          }));
+      });
 
-        // Show Toast Notification
-        function showToast(message) {
-            const toast = document.getElementById('toast');
-            const toastMessage = document.getElementById('toast-message');
-            toastMessage.textContent = message;
-            toast.classList.remove('hidden');
-            setTimeout(() => {
-                toast.classList.add('hidden');
-            }, 3000);
-        }
-    </script>
+      video.addEventListener('seeked', () => {
+          videoSocket.send(JSON.stringify({
+              type: 'video_sync',
+              action: 'seek',
+              timestamp: video.currentTime
+          }));
+         });
+      };
 
-    <style>
-        #participants-list, #chat-messages {
-            max-height: 75%;
-            overflow-y: scroll;
-        }
+          // Toggle Participants List
+          const participantsBtn = document.getElementById('participants-btn');
+          const participantsList = document.getElementById('participants-list');
 
-        input[type="text"], button {
-            border-radius: 9999px; /* Fully rounded buttons and inputs */
-        }
+          participantsBtn.addEventListener('click', () => {
+              participantsList.classList.toggle('hidden');
+          });
+      });
 
-        button {
-            transition: all 0.2s ease-in-out;
-        }
+      chatSocket.onmessage = function(e) {
+          const data = JSON.parse(e.data);
 
-        button:hover {
-            transform: scale(1.05);
-        }
+          if (data.type === 'history') {
+              const messageContainer = document.getElementById('chat-messages');
+              messageContainer.innerHTML = '';
+              data.messages.forEach(msg => {
+                  const messageElement = createMessageElement(msg.username, msg.message, msg.timestamp);
+                  messageContainer.innerHTML += messageElement;
+              });
+              messageContainer.scrollTop = messageContainer.scrollHeight;
+          } else if (data.type === 'chat') {
+              const messageElement = createMessageElement(data.username, data.message, data.timestamp);
+              const messageContainer = document.getElementById('chat-messages');
+              messageContainer.innerHTML += messageElement;
+              messageContainer.scrollTop = messageContainer.scrollHeight;
+          }else if (data.type === 'video_sync') {
+          // Handle video sync messages
+          const action = data.action;
+          const timestamp = data.timestamp;
 
-        a {
-            transition: all 0.2s ease-in-out;
-        }
+          if (action === 'play') {
+              video.currentTime = timestamp;
+              video.play();
+          } else if (action === 'pause') {
+              video.pause();
+          } else if (action === 'seek') {
+              video.currentTime = timestamp;
+          }
+      }
+      };
 
-        a:hover {
-            transform: scale(1.05);
-        }
+      chatSocket.onclose = function() {
+          console.error('Chat socket closed unexpectedly');
+      };
 
-        .backdrop-blur-lg {
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-        }
+      document.getElementById('chat-message-submit').onclick = function() {
+          const messageInput = document.getElementById('chat-message-input');
+          const message = messageInput.value.trim();
 
-        #toast {
-            animation: fadeInOut 2s forwards;
-            z-index: 9999; /* To ensure toast is above all */
-        }
+          if (message) {
+              chatSocket.send(JSON.stringify({
+                  type: 'chat',
+                  message: message
+              }));
+              messageInput.value = '';
+          }
+      };
 
-        @keyframes fadeInOut {
-            0% {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            10%, 90% {
-                opacity: 1;
-                transform: translateY(0);
-            }
-            100% {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-        }
-    </style>
+      document.getElementById('chat-message-input').addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') {
+              document.getElementById('chat-message-submit').click();
+          }
+      });
 
-    <script>
-        const roomSlug = "{{ room.slug }}";
-        const chatSocket = new WebSocket(
-            `ws://${window.location.host}/ws/room/${roomSlug}/`
-        );
-    
-        chatSocket.onmessage = function(e) {
-            const data = JSON.parse(e.data);
-            const messageContainer = document.getElementById('chat-messages');
-            
-            if (data.type === 'history') {
-                // Load message history
-                messageContainer.innerHTML = ''; // Clear existing messages
-                data.messages.forEach(msg => {
-                    const messageElement = createMessageElement(msg.username, msg.message, msg.timestamp);
-                    messageContainer.innerHTML += messageElement;
-                });
-            } else {
-                // Handle new messages - fixed to use data.message instead of msg.message
-                const messageElement = createMessageElement(data.username, data.message, new Date().toISOString());
-                messageContainer.innerHTML += messageElement;
-            }
-            messageContainer.scrollTop = messageContainer.scrollHeight;
-        };
-    
-        chatSocket.onclose = function(e) {
-            console.error('Chat socket closed unexpectedly');
-        };
-    
-        document.getElementById('chat-message-submit').onclick = function(e) {
-            const messageInputDom = document.getElementById('chat-message-input');
-            const message = messageInputDom.value;
+      function createMessageElement(username, message, timestamp) {
+          return `
+              <div class="my-2 p-2 bg-black text-white rounded-lg shadow">
+                  <div class="flex justify-between items-start">
+                      <div>
+                          <strong>${username}:</strong> ${message}
+                      </div>
+                      <small class="text-gray-400 text-xs ml-2">${new Date(timestamp).toLocaleTimeString()}</small>
+                  </div>
+              </div>
+          `;
+      }
 
-            
-            if (message.trim()) {
-                chatSocket.send(JSON.stringify({
-                    'message': message
-                }));
-                messageInputDom.value = '';
-            }
-        };
-    
-        // Add Enter key support
-        document.getElementById('chat-message-input').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                document.getElementById('chat-message-submit').click();
-            }
-        });
+      function showToast(message) {
+          const toast = document.getElementById('toast');
+          const toastMessage = document.getElementById('toast-message');
+          toastMessage.textContent = message;
+          toast.classList.remove('hidden');
+          setTimeout(() => {
+              toast.classList.add('hidden');
+          }, 1000);
+      }
 
-        // Helper function to create consistent message elements
-        function createMessageElement(username, message, timestamp) {
-            return `
-                <div class="my-2 p-2 bg-black text-white rounded-lg shadow">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <strong>${username}:</strong> ${message}
-                        </div>
-                        <small class="text-gray-400 text-xs ml-2 shrink-0">${new Date(timestamp).toLocaleTimeString()}</small>
-                    </div>
-                </div>
-            `;
-        }
-    </script>
+      function copyToClipboard(text) {
+          navigator.clipboard.writeText(text).then(() => {
+              showToast('Room link copied!');
+          });
+      }
 
+        const menuButton = document.getElementById('menu-button');
+      const mobileMenu = document.getElementById('mobile-menu');
+
+      menuButton.addEventListener('click', () => {
+      mobileMenu.classList.toggle('hidden'); // Show/hide mobile menu
+      });
+   </script>
 </body>
-
 {% endblock %}

@@ -170,18 +170,23 @@ def join_room_via_link(request):
     room = get_object_or_404(Room, slug=room_slug)
     return redirect('join_room', slug=room.slug)
 
+
 @login_required
 def room_detail_view(request, slug):
     room = get_object_or_404(Room, slug=slug)
     participants = room.participants.all()
-    
+
     # Add user to participants if not already present
     if request.user not in participants:
         room.participants.add(request.user)
 
-    return render(request, 'app/room_detail.html', {
+    # Add `is_owner` to context
+    is_owner = request.user == room.owner
+
+    return render(request, 'app/join_room.html', {
         'room': room,
-        'participants': participants
+        'participants': participants,
+        'is_owner': is_owner,  # Pass owner check to the template
     })
 
 

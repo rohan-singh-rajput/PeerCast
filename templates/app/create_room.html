@@ -1,42 +1,113 @@
 {% extends 'base.html' %}
 {% block content %}
-<body class="bg-gray-100 min-h-screen flex items-center justify-center">
-    <div class="max-w-lg w-full bg-white rounded-lg shadow-lg p-8">
-        <h1 class="text-3xl font-semibold text-gray-900 text-center mb-6">Create a New Room</h1>
+<body class="bg-gradient-to-br from-gray-100 to-gray-200 min-h-screen flex items-center justify-center">
 
-        <!-- Display Messages -->
-        {% if messages %}
-        <div class="mb-4">
-            {% for message in messages %}
-            <div class="p-2 rounded-lg {% if message.tags == 'success' %}bg-green-200 text-green-800{% else %}bg-red-200 text-red-800{% endif %}">
-                {{ message }}
-            </div>
-            {% endfor %}
+<header class="bg-white bg-opacity-50 backdrop-blur-lg fixed top-0 w-full p-4 z-50 shadow-md">
+    <div class="container mx-auto flex justify-between items-center">
+        <!-- Brand Name -->
+        <a href="/" class="text-3xl font-semibold text-gray-900 tracking-wide">PeerCast</a>
+
+        <!-- Auth Buttons -->
+        <div class="hidden md:flex space-x-4">
+            {% if user.is_authenticated %}
+            <a href="#"
+               class="text-gray-900 px-3 py-2 border border-gray-900 rounded-full hover:bg-gray-100 transition-all">Profile</a>
+            <a href="{% url 'logout' %}"
+               class="bg-gray-900 text-white px-4 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all">Logout</a>
+            {% else %}
+            <a href="{% url 'login' %}"
+               class="text-gray-900 px-3 py-2 border border-gray-900 rounded-full hover:bg-gray-100 transition-all">Login</a>
+            <a href="{% url 'register' %}"
+               class="bg-gray-900 text-white px-4 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all">Sign
+                Up</a>
+            {% endif %}
         </div>
-        {% endif %}
 
-        <!-- Room Creation Form -->
-        <form method="post" id="room-form" target="_blank">
-            {% csrf_token %}
-            {{ form.as_p }}
-            <input type="hidden" id="video-url-input" name="video_url">
-
-            <!-- Video Upload Section -->
-            <h2 class="text-xl font-semibold mt-6 mb-2">Upload Video</h2>
-            <input type="file" id="videoInput" accept="video/*" class="w-full p-2 border border-gray-300 rounded-lg">
-            <button type="button" id="uploadButton" class="w-full bg-blue-600 text-white py-2 rounded-lg mt-4 hover:bg-blue-500 transition-all">
-                Upload and Chunk Video
-            </button>
-
-            <!-- Submit Button -->
-            <button type="submit" id="submit-btn" class="w-full bg-gray-900 text-white py-3 rounded-lg mt-4 hover:bg-gray-800 transition-all" disabled>
-                Create Room
-            </button>
-        </form>
-        <div id="log" class="mt-4 text-sm text-gray-600"></div>
+        <!-- Hamburger Menu for Mobile -->
+        <button id="menu-button" class="md:hidden text-gray-900 focus:outline-none">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                 xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+        </button>
     </div>
 
-    <script>
+    <!-- Mobile Menu -->
+    <nav id="mobile-menu"
+         class="md:hidden hidden flex flex-col space-y-4 mt-4 bg-white bg-opacity-80 backdrop-blur-lg p-4 rounded-lg">
+
+        {% if user.is_authenticated %}
+        <a href="#"
+           class="text-gray-900 px-3 py-2 border border-gray-900 rounded-full hover:bg-gray-100 transition-all">Profile</a>
+        <a href="{% url 'logout' %}"
+           class="bg-gray-900 text-white px-4 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all">Logout</a>
+        {% else %}
+        <a href="{% url 'login' %}"
+           class="text-gray-900 px-3 py-2 border border-gray-900 rounded-full hover:bg-gray-100 transition-all">Login</a>
+        <a href="{% url 'register' %}"
+           class="bg-gray-900 text-white px-4 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all">Sign Up</a>
+        {% endif %}
+    </nav>
+</header>
+
+<div class="max-w-lg w-full bg-white rounded-lg  p-8">
+    <h1 class="text-3xl font-semibold text-gray-900 text-center mb-6">Create a New Room</h1>
+
+    <!-- Display Messages -->
+    {% if messages %}
+    <div class="mb-4">
+        {% for message in messages %}
+        <div class="p-3 rounded-lg {% if message.tags == 'success' %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Room Creation Form -->
+    <!-- Room Creation Form -->
+    <form method="post" id="room-form" target="_blank">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <input type="hidden" id="video-url-input" name="video_url">
+
+        <!-- Video Upload Section -->
+        <div class="file-upload-container relative w-full">
+            <input
+                    type="file"
+                    id="videoInput"
+                    accept="video/*"
+                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+            >
+            <div class="flex items-center justify-between p-4 border border-gray-300 rounded-lg bg-gray-100 hover:bg-gray-200 transition-all">
+                <p id="fileName" class="text-gray-500">Choose a video file...</p>
+                <button
+                        type="button"
+                        class="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900 transition-all"
+                >
+                    Browse
+                </button>
+            </div>
+        </div>
+
+        <button type="button" id="uploadButton"
+                class="w-full text-gray-900 mt-4 px-3 py-2 border border-gray-900 rounded-full hover:bg-gray-100 transition-all">
+            Upload and Chunk Video
+        </button>
+
+        <!-- Submit Button -->
+        <button type="submit" id="submit-btn"
+                class="w-full bg-gray-900 text-white py-3 rounded-full mt-4 hover:bg-gray-800 transition-all" disabled>
+            Create Room
+        </button>
+    </form>
+    <div id="log" class="mt-4 text-sm text-gray-600"></div>
+</div>
+</div>
+
+
+<script>
     const { createFFmpeg, fetchFile } = FFmpeg;
     const ffmpeg = createFFmpeg({ log: true });  // Create an FFmpeg instance with logging enabled
     const logDiv = document.getElementById('log');  // Reference to the log div for displaying messages
@@ -186,6 +257,16 @@
 
         console.log("Processing and uploading complete.");
     };
-    </script>
+
+        document.addEventListener('DOMContentLoaded', function () {
+    const menuButton = document.getElementById('menu-button');
+    const mobileMenu = document.getElementById('mobile-menu');
+
+    menuButton.addEventListener('click', () => {
+        mobileMenu.classList.toggle('hidden'); // Show/hide mobile menu
+    });
+});
+
+</script>
 </body>
 {% endblock %}

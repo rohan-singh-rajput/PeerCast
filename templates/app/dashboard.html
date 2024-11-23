@@ -3,100 +3,148 @@
 {% block content %}
 <body class="bg-gradient-to-br from-gray-100 to-gray-200 min-h-screen flex items-center justify-center">
 
-    <!-- Main Container -->
-    <div class="max-w-2xl w-full bg-white bg-opacity-80 backdrop-blur-lg rounded-3xl shadow-2xl p-10 fade-in main-container">
-        <!-- Header -->
-        <h1 class="text-4xl font-semibold text-gray-900 text-center mb-4">Welcome to Peercast</h1>
-        <p class="text-xl text-gray-700 text-center mb-8">Good {{ greeting_time }}, {{ user.username }}!</p>
-        
-        <!-- Action Buttons -->
-        <div class="flex justify-around mt-8 space-x-6">
-            <!-- Create a Meeting Button -->
-            <a href="{% url 'create_room' %}" class="flex flex-col items-center action-button" aria-label="Create a Meeting">
-                <div class="bg-black text-white rounded-full w-24 h-24 flex items-center justify-center mb-2 shadow-lg">
-                    <!-- Plus icon for creating a meeting -->
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                </div>
-                <span class="text-gray-800 font-medium">Create a Meeting</span>
-            </a>
+<!--    header-->
+<header class=" fixed top-0 w-full p-3 z-50 ">
+    <div class="container mx-auto flex justify-between items-center">
+        <!-- Brand Name -->
+        <a href="/" class="text-3xl font-semibold text-gray-900 tracking-wide">PeerCast</a>
 
-            <!-- Join a Meeting via Link -->
-            <form method="GET" action="{% url 'join_room_via_link' %}" class="flex flex-col items-center action-button">
-                <div class="bg-black text-white rounded-full w-24 h-24 flex items-center justify-center mb-2 shadow-lg">
-                    <!-- Link icon for joining via link -->
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v3m4 0v-3m-4 0a2 2 0 10-4 0v6a2 2 0 004 0v-3a2 2 0 10-4 0M14 9a2 2 0 104 0v6a2 2 0 10-4 0v-3a2 2 0 104 0" />
-                    </svg>
-                </div>
-                <input 
-                    type="text" 
-                    name="room_slug" 
-                    placeholder="Enter Room Slug" 
-                    class="w-full max-w-xs p-3 border border-gray-300 rounded-lg focus:ring focus:ring-blue-300 focus:outline-none mb-4"
-                    required>
-                <button type="submit" class="text-gray-800 font-medium">Join via Link</button>
-            </form>
+        <!-- Auth Buttons -->
+        <div class="hidden md:flex space-x-4">
+            {% if user.is_authenticated %}
+            <a href="#"
+               class="text-gray-900 px-3 py-2 border border-gray-900 rounded-full hover:bg-gray-100 transition-all">Profile</a>
+            <a href="{% url 'logout' %}"
+               class="bg-gray-900 text-white px-4 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all">Logout</a>
+            {% else %}
+            <a href="{% url 'login' %}"
+               class="text-gray-900 px-3 py-2 border border-gray-900 rounded-full hover:bg-gray-100 transition-all">Login</a>
+            <a href="{% url 'register' %}"
+               class="bg-gray-900 text-white px-4 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all">Sign
+                Up</a>
+            {% endif %}
         </div>
 
-        <!-- Available Rooms -->
-        <div class="mt-10">
-            <h2 class="text-2xl font-semibold text-gray-900 text-center mb-4">Available Rooms</h2>
-            <ul>
-                {% for room in rooms %}
-                    <li class="mb-4">
-                        <a href="{% url 'join_room' room.slug %}" class="flex items-center justify-between bg-gray-200 hover:bg-gray-300 text-gray-800 p-4 rounded-xl shadow-md transition-all duration-300">
-                            <span class="font-medium">{{ room.name }}</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M4 6h12a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2z" />
-                            </svg>
-                        </a>
-                    </li>
-                {% empty %}
-                    <p class="text-center text-gray-600">No rooms available. Create a new room to get started!</p>
-                {% endfor %}
-            </ul>
-        </div>
-
-        <!-- Logout Button -->
-        <div class="flex justify-center mt-10">
-            <a href="{% url 'logout' %}" class="bg-red-600 text-white text-sm px-4 py-2 rounded-full shadow-md hover:bg-red-500 transition-all duration-300">
-                Logout
-            </a>
-        </div>
+        <!-- Hamburger Menu for Mobile -->
+        <button id="menu-button" class="md:hidden text-gray-900 focus:outline-none">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                 xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+        </button>
     </div>
 
-    <style>
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
+    <!-- Mobile Menu -->
+    <nav id="mobile-menu"
+         class="md:hidden hidden flex flex-col space-y-4 mt-4 bg-white bg-opacity-80 backdrop-blur-lg p-4 rounded-lg">
 
-        .fade-in {
-            animation: fadeInUp 0.5s ease forwards;
-        }
+        {% if user.is_authenticated %}
+        <a href="#"
+           class="text-gray-900 px-3 py-2 border border-gray-900 rounded-full hover:bg-gray-100 transition-all">Profile</a>
+        <a href="{% url 'logout' %}"
+           class="bg-gray-900 text-white px-4 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all">Logout</a>
+        {% else %}
+        <a href="{% url 'login' %}"
+           class="text-gray-900 px-3 py-2 border border-gray-900 rounded-full hover:bg-gray-100 transition-all">Login</a>
+        <a href="{% url 'register' %}"
+           class="bg-gray-900 text-white px-4 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all">Sign Up</a>
+        {% endif %}
+    </nav>
+</header>
 
-        .action-button {
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        
-        .action-button:hover {
-            transform: scale(1.05);
-        }
+<!-- Main Container -->
+<div class="max-w-2xl w-full bg-white bg-opacity-50 backdrop-blur-lg rounded-3xl p-8 fade-in main-container">
+    <p class="text-xl text-gray-700 text-center mb-8">Good {{ greeting_time }}, {{ user.username }}!</p>
 
-        /* Custom focus styles for improved accessibility */
-        .action-button:focus {
-            outline: 2px solid #2563eb; /* Apple-like blue focus ring */
-            outline-offset: 4px;
+    <!-- Action Buttons -->
+    <div class="flex justify-around mt-8 space-x-6">
+        <!-- Create a Meeting Button -->
+        <a href="{% url 'create_room' %}" class="flex flex-col items-center action-button"
+           aria-label="Create a Meeting">
+            <div class="bg-black text-white rounded-full w-24 h-24 flex items-center justify-center mb-2 shadow-lg">
+                <!-- Plus icon for creating a meeting -->
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24"
+                     stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+            </div>
+            <span class="text-gray-800 font-medium">Create a Meeting</span>
+        </a>
+
+        <!-- Join a Meeting via Link -->
+        <form method="GET" action="{% url 'join_room_via_link' %}" class="flex flex-col items-center action-button">
+            <div class="bg-black text-white rounded-full w-24 h-24 flex items-center justify-center mb-2 shadow-lg">
+                <!-- Link icon for joining via link -->
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24"
+                     stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M10 9v3m4 0v-3m-4 0a2 2 0 10-4 0v6a2 2 0 004 0v-3a2 2 0 10-4 0M14 9a2 2 0 104 0v6a2 2 0 10-4 0v-3a2 2 0 104 0"/>
+                </svg>
+            </div>
+            <input
+                    type="text"
+                    name="room_slug"
+                    placeholder="Enter Room Slug"
+                    class="w-full max-w-xs p-3 border border-gray-300 rounded-lg focus:ring focus:ring-blue-300 focus:outline-none mb-4"
+                    required>
+            <button type="submit" class="text-gray-800 font-medium">Join via Link</button>
+        </form>
+    </div>
+
+    <!-- Available Rooms -->
+    <div class="mt-10">
+        <h2 class="text-2xl font-semibold text-gray-900 text-center mb-4">Available Rooms</h2>
+        <ul>
+            {% for room in rooms %}
+            <li class="mb-4">
+                <a href="{% url 'join_room' room.slug %}"
+                   class="flex items-center justify-between bg-gray-200 hover:bg-gray-300 text-gray-800 p-4 rounded-xl shadow-md transition-all duration-300">
+                    <span class="font-medium">{{ room.name }}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                         stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M4 6h12a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2z"/>
+                    </svg>
+                </a>
+            </li>
+            {% empty %}
+            <p class="text-center text-gray-600">No rooms available. Create a new room to get started!</p>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<style>
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
         }
-    </style>
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .fade-in {
+        animation: fadeInUp 0.5s ease forwards;
+    }
+
+    .action-button {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .action-button:hover {
+        transform: scale(1.05);
+    }
+
+    /* Custom focus styles for improved accessibility */
+    .action-button:focus {
+        outline: 2px solid #2563eb; /* Apple-like blue focus ring */
+        outline-offset: 4px;
+    }
+</style>
 
 </body>
 {% endblock %}

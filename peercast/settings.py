@@ -34,11 +34,13 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")  # Directory to store uploaded medi
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-w_auav(+ijopp52(j5-l+aka9gy*gd_%-d5l%vesi-m^mrsuc9"
+CSRF_TRUSTED_ORIGINS = ['https://*.ngrok-free.app']
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+ALLOWED_HOSTS = ["*"]
 
 AUTH_USER_MODEL = "core.UserProfile"
 
