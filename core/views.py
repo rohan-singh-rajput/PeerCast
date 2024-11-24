@@ -5,7 +5,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse, HttpResponseBadRequest
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_http_methods, require_POST
 from django.contrib import messages
 from django.utils import timezone, text
@@ -200,7 +200,7 @@ def room_view(request):
     return render(request, "app/room.html")
 
 
-@csrf_exempt
+@csrf_protect
 def create_room_view(request):
     if request.method == 'POST':
         form = RoomForm(request.POST)
@@ -246,7 +246,7 @@ metadata_db = dynamodb.Table('metadata_db')
 def upload_view(request):
     return render(request, 'upload_file.html')
 
-@csrf_exempt
+@csrf_protect
 def get_presigned_url(request):
     if request.method == 'POST':
         data = json.loads(request.body)
@@ -276,7 +276,7 @@ def get_presigned_url(request):
     return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 
-@csrf_exempt  # Use appropriate authentication in production
+@csrf_protect  # Use appropriate authentication in production
 def start_step_function(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Only POST method is allowed.'}, status=405)
@@ -320,7 +320,7 @@ def start_step_function(request):
         return JsonResponse({'error': str(e)}, status=500)
     
 
-@csrf_exempt
+@csrf_protect
 def update_endlist_db(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Only POST method is allowed.'}, status=405)
