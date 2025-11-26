@@ -1,14 +1,8 @@
+version: '3.8'
 
 services:
   web:
     build: .
-    command: >
-      sh -c "
-      ./wait-for-it.sh db:5432 -- 
-      ./wait-for-it.sh redis:6379 -- 
-      python manage.py makemigrations &&
-      python manage.py migrate &&
-      python manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/code
     ports:
@@ -16,16 +10,18 @@ services:
     depends_on:
       - db
       - redis
+      - rabbitmq
     env_file:
-      - .env  # Load environment variables from .env file
+      - .env
+    command: sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"
 
   db:
     image: postgres:13
     restart: always
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=peercast
     ports:
       - "5432:5432"
     volumes:
@@ -37,16 +33,27 @@ services:
     ports:
       - "6379:6379"
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+
   celery:
     build: .
     command: celery -A peercast worker --loglevel=info
     depends_on:
       - redis
       - db
+      - rabbitmq
     volumes:
       - .:/code
     env_file:
-      - .env  # Load environment variables for Celery
+      - .env
 
   celery-beat:
     build: .
@@ -54,11 +61,11 @@ services:
     depends_on:
       - redis
       - db
+      - rabbitmq
     volumes:
       - .:/code
     env_file:
-      - .env  # Load environment variables for Celery Beat
-
+      - .env
 
 volumes:
   postgres_data:
