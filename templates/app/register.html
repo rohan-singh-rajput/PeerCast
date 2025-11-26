@@ -9,84 +9,202 @@
             <a href="{% url 'home' %}" class="text-3xl font-semibold text-gray-900 tracking-wide">PeerCast</a>
         </div>
     </header>
-  
+
     <!-- Signup Section -->
     <section class="flex items-center justify-center h-screen">
         <div class="bg-white rounded-xl shadow-lg p-8 max-w-md w-full">
             <h2 class="text-3xl font-semibold text-gray-900 mb-6 text-center">Create an Account</h2>
-            
-            <form method="post">
+
+            <!-- Note: form uses normal inputs but submission handled by JS -->
+            <form id="signupForm" method="post">
                 {% csrf_token %}
 
                 <div class="mb-4">
                     <label class="block text-gray-700 font-semibold mb-2" for="username">Username</label>
-                    <input type="text" name="username" id="username" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter your Username" required>
+                    <input type="text" name="username" id="username"
+                        class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter your Username" required>
                     <div id="usernameError" class="text-red-500 text-sm mt-1"></div>
                 </div>
-                
+
                 <div class="mb-4">
                     <label class="block text-gray-700 font-semibold mb-2" for="email">Email</label>
-                    <input type="email" name="email" id="email" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter your Email" required>
+                    <input type="email" name="email" id="email"
+                        class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter your Email" required>
                     <div id="emailError" class="text-red-500 text-sm mt-1"></div>
                 </div>
-                
+
                 <div class="mb-4">
                     <label class="block text-gray-700 font-semibold mb-2" for="password">Password</label>
-                    <input type="password" name="password" id="password" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Create a password" required>
+                    <input type="password" name="password" id="password"
+                        class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Create a password" required>
                     <div id="passwordError" class="text-red-500 text-sm mt-1"></div>
                 </div>
-                
-                <button type="submit" class="bg-gray-900 text-white px-6 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all duration-300 w-full">Sign Up</button>
+
+                <button id="signupBtn" type="button"
+                    class="bg-gray-900 text-white px-6 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all duration-300 w-full">
+                    Sign Up & Register Device
+                </button>
             </form>
-            
-            <p class="text-center text-gray-600 mt-4">Already have an account? 
+
+            <p class="text-center text-gray-600 mt-4">Already have an account?
                 <a href="{% url 'login' %}" class="text-blue-600 hover:underline">Login</a>
             </p>
+
+            <div id="webauthnStatus" class="text-sm mt-4"></div>
         </div>
     </section>
 
     <script>
-        // Real-time Validation for Username
-        document.getElementById('username').addEventListener('input', function () {
-            const usernameInput = this.value;
-            const usernameError = document.getElementById('usernameError');
-            if (usernameInput.length < 3) {
-                usernameError.textContent = "Username must be at least 3 characters.";
-            } else {
-                usernameError.textContent = "";
-            }
-        });
+        // --- helpers ---
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
 
-        // Real-time Validation for Email
-        document.getElementById('email').addEventListener('input', function () {
-            const emailInput = this.value;
-            const emailError = document.getElementById('emailError');
-            if (!emailInput.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-                emailError.textContent = "Please enter a valid email address.";
-            } else {
-                emailError.textContent = "";
-            }
-        });
+        function base64UrlToBuffer(base64UrlString) {
+            base64UrlString = base64UrlString.replace(/-/g, '+').replace(/_/g, '/');
+            const pad = base64UrlString.length % 4;
+            if (pad) base64UrlString += '='.repeat(4 - pad);
+            const str = atob(base64UrlString);
+            const bytes = new Uint8Array(str.length);
+            for (let i = 0; i < str.length; i++) bytes[i] = str.charCodeAt(i);
+            return bytes.buffer;
+        }
 
-        // Real-time Validation for Password
-        document.getElementById('password').addEventListener('input', function () {
-            const passwordInput = this.value;
-            const passwordError = document.getElementById('passwordError');
-            if (passwordInput.length < 6) {
-                passwordError.textContent = "Password must be at least 6 characters.";
-            } else {
-                passwordError.textContent = "";
-            }
-        });
+        function bufferToBase64Url(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let b of bytes) binary += String.fromCharCode(b);
+            let b64 = btoa(binary);
+            b64 = b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+            return b64;
+        }
+
+        function showStatus(msg, isError = false) {
+            const el = document.getElementById('webauthnStatus');
+            el.textContent = msg;
+            el.style.color = isError ? 'crimson' : 'green';
+        }
+
+        // --- main flow: sign up then register device ---
+        (function () {
+            const signupBtn = document.getElementById('signupBtn');
+            const form = document.getElementById('signupForm');
+
+            signupBtn.addEventListener('click', async () => {
+                // validation (simple)
+                const username = document.getElementById('username').value.trim();
+                const email = document.getElementById('email').value.trim();
+                const password = document.getElementById('password').value;
+
+                if (!username || !email || !password) {
+                    showStatus('Please fill username, email, and password first.', true);
+                    return;
+                }
+
+                showStatus('Creating account...');
+
+                try {
+                    // send signup to server via JSON; register_view will return JSON success with user_id
+                    const csrftoken = getCookie('csrftoken');
+                    const signupResp = await fetch("{% url 'register' %}", {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrftoken
+                        },
+                        body: JSON.stringify({ username, email, password })
+                    });
+
+                    const signupJson = await signupResp.json();
+                    if (!signupResp.ok) {
+                        throw new Error(signupJson.error || (signupJson.detail || 'Signup failed'));
+                    }
+
+                    const user_id = signupJson.user_id || signupJson.username || username;
+                    showStatus('Signup successful — registering device now...');
+
+                    // 1) request create options
+                    const optionsResp = await fetch('/webauthn/register/options', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrftoken
+                        },
+                        body: JSON.stringify({ user_id, username, displayName: username, email })
+                    });
+
+                    if (!optionsResp.ok) {
+                        const err = await optionsResp.json().catch(() => ({ error: 'Bad response' }));
+                        throw new Error(err.error || 'Failed to get registration options');
+                    }
+                    const options = await optionsResp.json();
+
+                    // convert values to buffers
+                    options.challenge = base64UrlToBuffer(options.challenge);
+                    options.user.id = base64UrlToBuffer(options.user.id);
+                    if (options.excludeCredentials) {
+                        options.excludeCredentials = options.excludeCredentials.map(c => ({ ...c, id: base64UrlToBuffer(c.id) }));
+                    }
+
+                    // 2) navigator.credentials.create
+                    const credential = await navigator.credentials.create({ publicKey: options });
+                    if (!credential) throw new Error('Credential creation returned null');
+
+                    const clientDataJSON = bufferToBase64Url(credential.response.clientDataJSON);
+                    const attestationObject = bufferToBase64Url(credential.response.attestationObject);
+                    const rawId = bufferToBase64Url(credential.rawId);
+
+                    // 3) send attestation to verify endpoint
+                    const verifyResp = await fetch('/webauthn/register/verify', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrftoken
+                        },
+                        body: JSON.stringify({
+                            id: credential.id,
+                            rawId,
+                            type: credential.type,
+                            response: { clientDataJSON, attestationObject },
+                            user_id, username, email
+                        })
+                    });
+
+                    const verifyJson = await verifyResp.json();
+                    if (!verifyResp.ok) {
+                        throw new Error(verifyJson.error || 'Registration verify failed');
+                    }
+
+                    showStatus('Device registered successfully! You can now login with it.');
+
+                    // optionally auto-redirect to login or dashboard
+                    // window.location.href = "{% url 'login' %}";
+
+                } catch (err) {
+                    console.error(err);
+                    showStatus('Error: ' + (err.message || err), true);
+                }
+            });
+        })();
     </script>
 
     <style>
-        /* Animations */
+        /* animations and small styles */
         @keyframes fadeIn {
             from {
                 opacity: 0;
                 transform: translateY(20px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -96,11 +214,6 @@
         form {
             animation: fadeIn 0.4s ease-out;
         }
-
-        .hidden {
-            display: none;
-        }
     </style>
-
 </body>
 {% endblock %}

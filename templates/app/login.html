@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
+
 <body class="bg-gray-50 font-sans text-gray-800">
 
     <!-- Header -->
@@ -18,30 +19,33 @@
 
                 <div class="mb-4">
                     <label class="block text-gray-700 font-semibold mb-2" for="email">Email</label>
-                    <input type="email" name="email" id="email" aria-label="email" class="w-full px-4 py-2 border rounded-lg" placeholder="Enter your Email" required>
+                    <input type="email" name="email" id="email" aria-label="email"
+                        class="w-full px-4 py-2 border rounded-lg" placeholder="Enter your Email" required>
                     <div id="emailError" class="text-red-500 text-sm mt-1"></div>
                 </div>
 
                 <div class="mb-4 relative">
                     <label class="block text-gray-700 font-semibold mb-2" for="password">Password</label>
-                    <input type="password" name="password" id="password" aria-label="password" class="w-full px-4 py-2 border rounded-lg" placeholder="Enter your Password" required>
+                    <input type="password" name="password" id="password" aria-label="password"
+                        class="w-full px-4 py-2 border rounded-lg" placeholder="Enter your Password" required>
                     <button type="button" onclick="togglePassword()" class="absolute right-3 top-3 text-gray-600">
                         Show
                     </button>
                     <div id="passwordError" class="text-red-500 text-sm mt-1"></div>
                 </div>
 
-                <button type="submit" class="bg-gray-900 text-white px-6 py-2 rounded-full w-full">
+                <button id="loginBtn" type="button" class="bg-gray-900 text-white px-6 py-2 rounded-full w-full">
                     Login
                 </button>
             </form>
 
-            <p class="text-center text-gray-600 mt-4">Don't have an account? <a href="{% url 'register' %}" class="text-blue-600 hover:underline">Sign up</a></p>
+            <p class="text-center text-gray-600 mt-4">Don't have an account? <a href="{% url 'register' %}"
+                    class="text-blue-600 hover:underline">Sign up</a></p>
 
             {% if messages %}
             <div id="toast" class="bg-green-100 text-green-800 p-4 rounded-md mt-4">
                 {% for message in messages %}
-                    <p>{{ message }}</p>
+                <p>{{ message }}</p>
                 {% endfor %}
             </div>
             {% endif %}
@@ -76,6 +80,118 @@
                 passwordError.textContent = "";
             }
         });
+
+        // --- WebAuthn login flow ---
+        // Safe base64url -> ArrayBuffer converter. Returns an ArrayBuffer for valid input
+        // and an empty ArrayBuffer for falsy/unknown input (avoids calling replace on undefined).
+        function base64UrlToBuffer(base64UrlString) {
+            if (!base64UrlString) return new ArrayBuffer(0);
+            if (base64UrlString instanceof ArrayBuffer) return base64UrlString;
+            // sometimes the server may already return a buffer-like (Uint8Array)
+            if (base64UrlString && base64UrlString.buffer && base64UrlString.buffer instanceof ArrayBuffer) return base64UrlString.buffer;
+            let s = String(base64UrlString);
+            s = s.replace(/-/g, '+').replace(/_/g, '/');
+            const pad = s.length % 4;
+            if (pad) s += '='.repeat(4 - pad);
+            const str = atob(s);
+            const bytes = new Uint8Array(str.length);
+            for (let i = 0; i < str.length; i++) bytes[i] = str.charCodeAt(i);
+            return bytes.buffer;
+        }
+
+        function bufferToBase64Url(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let b of bytes) binary += String.fromCharCode(b);
+            let b64 = btoa(binary);
+            b64 = b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+            return b64;
+        }
+
+        // Try WebAuthn login; return true if handled (success), false if caller should fall back to normal submit
+        async function attemptWebAuthnLogin(email, csrftoken) {
+            try {
+                const optsResp = await fetch('/webauthn/authenticate/options', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                    body: JSON.stringify({ user_id: email })
+                });
+                if (!optsResp.ok) return false;
+                const optionsJson = await optsResp.json();
+
+                // server may return { publicKey: {...} } or the options at top-level
+                const publicKey = (optionsJson && optionsJson.publicKey) ? optionsJson.publicKey : optionsJson;
+                if (!publicKey || !publicKey.challenge) {
+                    // nothing to do for WebAuthn (no challenge) -> fallback
+                    return false;
+                }
+
+                // convert challenge
+                publicKey.challenge = base64UrlToBuffer(publicKey.challenge);
+
+                // convert allowCredentials ids if present
+                if (Array.isArray(publicKey.allowCredentials) && publicKey.allowCredentials.length) {
+                    publicKey.allowCredentials = publicKey.allowCredentials.map(c => {
+                        const copy = Object.assign({}, c);
+                        copy.id = base64UrlToBuffer(copy.id);
+                        return copy;
+                    });
+                }
+
+                // ask user agent for assertion
+                const assertion = await navigator.credentials.get({ publicKey });
+                if (!assertion) return false;
+
+                const clientDataJSON = bufferToBase64Url(assertion.response.clientDataJSON);
+                const authenticatorData = bufferToBase64Url(assertion.response.authenticatorData);
+                const signature = bufferToBase64Url(assertion.response.signature);
+                const rawId = bufferToBase64Url(assertion.rawId);
+
+                const verifyResp = await fetch('/webauthn/authenticate/verify', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                    body: JSON.stringify({
+                        rawId,
+                        id: assertion.id,
+                        type: assertion.type,
+                        response: { clientDataJSON, authenticatorData, signature },
+                        user_id: email
+                    })
+                });
+
+                if (!verifyResp.ok) {
+                    // server rejected the assertion -> fallback to form submit
+                    return false;
+                }
+                const vr = await verifyResp.json();
+                if (vr && vr.ok) {
+                    // successful login via WebAuthn
+                    window.location.href = '{% url "dashboard" %}';
+                    return true;
+                }
+                return false;
+            } catch (err) {
+                console.error('webauthn attempt error', err);
+                return false;
+            }
+        }
+
+        document.getElementById('loginBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value.trim();
+            if (!email) {
+                alert('Enter email (username) first');
+                return;
+            }
+            const csrftoken = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value;
+            const handled = await attemptWebAuthnLogin(email, csrftoken);
+            if (!handled) {
+                // fallback -> submit the form normally (password flow)
+                document.querySelector('form').submit();
+            }
+        });
     </script>
 
     <style>
@@ -85,6 +201,7 @@
                 opacity: 0;
                 transform: translateY(20px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
