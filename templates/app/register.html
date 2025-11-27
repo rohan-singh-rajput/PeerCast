@@ -15,41 +15,35 @@
         <div class="bg-white rounded-xl shadow-lg p-8 max-w-md w-full">
             <h2 class="text-3xl font-semibold text-gray-900 mb-6 text-center">Create an Account</h2>
 
-            <!-- Note: form uses normal inputs but submission handled by JS -->
             <form id="signupForm" method="post">
                 {% csrf_token %}
 
                 <div class="mb-4">
                     <label class="block text-gray-700 font-semibold mb-2" for="username">Username</label>
-                    <input type="text" name="username" id="username"
-                        class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    <input type="text" name="username" id="username" class="w-full px-4 py-2 border rounded-lg"
                         placeholder="Enter your Username" required>
-                    <div id="usernameError" class="text-red-500 text-sm mt-1"></div>
                 </div>
 
                 <div class="mb-4">
                     <label class="block text-gray-700 font-semibold mb-2" for="email">Email</label>
-                    <input type="email" name="email" id="email"
-                        class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    <input type="email" name="email" id="email" class="w-full px-4 py-2 border rounded-lg"
                         placeholder="Enter your Email" required>
-                    <div id="emailError" class="text-red-500 text-sm mt-1"></div>
                 </div>
 
                 <div class="mb-4">
                     <label class="block text-gray-700 font-semibold mb-2" for="password">Password</label>
-                    <input type="password" name="password" id="password"
-                        class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    <input type="password" name="password" id="password" class="w-full px-4 py-2 border rounded-lg"
                         placeholder="Create a password" required>
-                    <div id="passwordError" class="text-red-500 text-sm mt-1"></div>
                 </div>
 
                 <button id="signupBtn" type="button"
-                    class="bg-gray-900 text-white px-6 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all duration-300 w-full">
+                    class="bg-gray-900 text-white px-6 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all w-full">
                     Sign Up & Register Device
                 </button>
             </form>
 
-            <p class="text-center text-gray-600 mt-4">Already have an account?
+            <p class="text-center text-gray-600 mt-4">
+                Already have an account?
                 <a href="{% url 'login' %}" class="text-blue-600 hover:underline">Login</a>
             </p>
 
@@ -58,7 +52,6 @@
     </section>
 
     <script>
-        // --- helpers ---
         function getCookie(name) {
             const value = `; ${document.cookie}`;
             const parts = value.split(`; ${name}=`);
@@ -66,154 +59,134 @@
             return null;
         }
 
-        function base64UrlToBuffer(base64UrlString) {
-            base64UrlString = base64UrlString.replace(/-/g, '+').replace(/_/g, '/');
-            const pad = base64UrlString.length % 4;
-            if (pad) base64UrlString += '='.repeat(4 - pad);
-            const str = atob(base64UrlString);
-            const bytes = new Uint8Array(str.length);
-            for (let i = 0; i < str.length; i++) bytes[i] = str.charCodeAt(i);
-            return bytes.buffer;
+        function base64UrlToBuffer(str) {
+            str = str.replace(/-/g, '+').replace(/_/g, '/');
+            const pad = str.length % 4;
+            if (pad) str += '='.repeat(4 - pad);
+            const decoded = atob(str);
+            const array = new Uint8Array(decoded.length);
+            for (let i = 0; i < decoded.length; i++) {
+                array[i] = decoded.charCodeAt(i);
+            }
+            return array.buffer;
         }
 
         function bufferToBase64Url(buffer) {
             const bytes = new Uint8Array(buffer);
-            let binary = '';
-            for (let b of bytes) binary += String.fromCharCode(b);
-            let b64 = btoa(binary);
-            b64 = b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-            return b64;
+            let str = "";
+            for (let i = 0; i < bytes.length; i++) str += String.fromCharCode(bytes[i]);
+            let b64 = btoa(str);
+            return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
         }
 
-        function showStatus(msg, isError = false) {
-            const el = document.getElementById('webauthnStatus');
+        function showStatus(msg, error = false) {
+            const el = document.getElementById("webauthnStatus");
             el.textContent = msg;
-            el.style.color = isError ? 'crimson' : 'green';
+            el.style.color = error ? "crimson" : "green";
         }
 
-        // --- main flow: sign up then register device ---
-        (function () {
-            const signupBtn = document.getElementById('signupBtn');
-            const form = document.getElementById('signupForm');
+        document.getElementById("signupBtn").addEventListener("click", async () => {
+            const username = document.getElementById("username").value.trim();
+            const email = document.getElementById("email").value.trim();
+            const password = document.getElementById("password").value;
 
-            signupBtn.addEventListener('click', async () => {
-                // validation (simple)
-                const username = document.getElementById('username').value.trim();
-                const email = document.getElementById('email').value.trim();
-                const password = document.getElementById('password').value;
+            if (!username || !email || !password) {
+                showStatus("Please fill username, email, and password.", true);
+                return;
+            }
 
-                if (!username || !email || !password) {
-                    showStatus('Please fill username, email, and password first.', true);
-                    return;
+            showStatus("Creating account...");
+
+            try {
+                const csrftoken = getCookie("csrftoken");
+
+                // create Django user account
+                const regResp = await fetch("{% url 'register' %}", {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": csrftoken
+                    },
+                    body: JSON.stringify({ username, email, password })
+                });
+
+                const regJson = await regResp.json();
+                if (!regResp.ok) throw new Error(regJson.error || "Signup failed");
+
+                // IMPORTANT: WebAuthn user_id MUST ALWAYS BE EMAIL
+                const user_id = email;
+
+                showStatus("Account created — registering passkey...");
+
+                // 1️⃣ request WebAuthn create options
+                const optResp = await fetch("/webauthn/register/options", {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": csrftoken
+                    },
+                    body: JSON.stringify({
+                        user_id: email,
+                        username: email,          // everything aligned to email
+                        displayName: email,
+                        email
+                    })
+                });
+
+                const options = await optResp.json();
+                if (!optResp.ok) throw new Error(options.error || "options failed");
+
+                // convert fields
+                options.challenge = base64UrlToBuffer(options.challenge);
+                options.user.id = base64UrlToBuffer(options.user.id);
+
+                if (options.excludeCredentials) {
+                    options.excludeCredentials = options.excludeCredentials.map(c => ({
+                        ...c,
+                        id: base64UrlToBuffer(c.id)
+                    }));
                 }
 
-                showStatus('Creating account...');
+                // 2️⃣ create credential
+                const credential = await navigator.credentials.create({ publicKey: options });
 
-                try {
-                    // send signup to server via JSON; register_view will return JSON success with user_id
-                    const csrftoken = getCookie('csrftoken');
-                    const signupResp = await fetch("{% url 'register' %}", {
-                        method: 'POST',
-                        credentials: 'same-origin',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrftoken
-                        },
-                        body: JSON.stringify({ username, email, password })
-                    });
+                const attestationObject = bufferToBase64Url(credential.response.attestationObject);
+                const clientDataJSON = bufferToBase64Url(credential.response.clientDataJSON);
+                const rawId = bufferToBase64Url(credential.rawId);
 
-                    const signupJson = await signupResp.json();
-                    if (!signupResp.ok) {
-                        throw new Error(signupJson.error || (signupJson.detail || 'Signup failed'));
-                    }
+                // 3️⃣ send result for server verification
+                const verifyResp = await fetch("/webauthn/register/verify", {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": csrftoken
+                    },
+                    body: JSON.stringify({
+                        user_id: email,
+                        id: credential.id,
+                        rawId,
+                        type: credential.type,
+                        response: {
+                            clientDataJSON,
+                            attestationObject
+                        }
+                    })
+                });
 
-                    const user_id = signupJson.user_id || signupJson.username || username;
-                    showStatus('Signup successful — registering device now...');
+                const verifyJson = await verifyResp.json();
+                if (!verifyResp.ok) throw new Error(verifyJson.error);
 
-                    // 1) request create options
-                    const optionsResp = await fetch('/webauthn/register/options', {
-                        method: 'POST',
-                        credentials: 'same-origin',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrftoken
-                        },
-                        body: JSON.stringify({ user_id, username, displayName: username, email })
-                    });
+                showStatus("Passkey registered successfully! You can now login.");
 
-                    if (!optionsResp.ok) {
-                        const err = await optionsResp.json().catch(() => ({ error: 'Bad response' }));
-                        throw new Error(err.error || 'Failed to get registration options');
-                    }
-                    const options = await optionsResp.json();
-
-                    // convert values to buffers
-                    options.challenge = base64UrlToBuffer(options.challenge);
-                    options.user.id = base64UrlToBuffer(options.user.id);
-                    if (options.excludeCredentials) {
-                        options.excludeCredentials = options.excludeCredentials.map(c => ({ ...c, id: base64UrlToBuffer(c.id) }));
-                    }
-
-                    // 2) navigator.credentials.create
-                    const credential = await navigator.credentials.create({ publicKey: options });
-                    if (!credential) throw new Error('Credential creation returned null');
-
-                    const clientDataJSON = bufferToBase64Url(credential.response.clientDataJSON);
-                    const attestationObject = bufferToBase64Url(credential.response.attestationObject);
-                    const rawId = bufferToBase64Url(credential.rawId);
-
-                    // 3) send attestation to verify endpoint
-                    const verifyResp = await fetch('/webauthn/register/verify', {
-                        method: 'POST',
-                        credentials: 'same-origin',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrftoken
-                        },
-                        body: JSON.stringify({
-                            id: credential.id,
-                            rawId,
-                            type: credential.type,
-                            response: { clientDataJSON, attestationObject },
-                            user_id, username, email
-                        })
-                    });
-
-                    const verifyJson = await verifyResp.json();
-                    if (!verifyResp.ok) {
-                        throw new Error(verifyJson.error || 'Registration verify failed');
-                    }
-
-                    showStatus('Device registered successfully! You can now login with it.');
-
-                    // optionally auto-redirect to login or dashboard
-                    // window.location.href = "{% url 'login' %}";
-
-                } catch (err) {
-                    console.error(err);
-                    showStatus('Error: ' + (err.message || err), true);
-                }
-            });
-        })();
+            } catch (err) {
+                console.error(err);
+                showStatus("Error: " + err.message, true);
+            }
+        });
     </script>
 
-    <style>
-        /* animations and small styles */
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        form {
-            animation: fadeIn 0.4s ease-out;
-        }
-    </style>
 </body>
 {% endblock %}

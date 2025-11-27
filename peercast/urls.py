@@ -11,6 +11,7 @@ urlpatterns = [
     path('webauthn/register/verify', webauthn.register_verify, name='webauthn_register_verify'),
     path('webauthn/authenticate/options', webauthn.authenticate_options, name='webauthn_authenticate_options'),
     path('webauthn/authenticate/verify', webauthn.authenticate_verify, name='webauthn_authenticate_verify'),
+    path('webauthn/has_credentials', webauthn.has_credentials, name='webauthn_has_credentials'),
     
 ]
 

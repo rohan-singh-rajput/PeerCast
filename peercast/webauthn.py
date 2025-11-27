@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth import login as django_login
+from django.contrib.auth import login as django_login, authenticate as django_authenticate
 from core.models import UserProfile
 
 import boto3
@@ -188,8 +188,78 @@ def get_credentials_for_user(user_id: str):
     except Exception:
         return []
 
-# ========== endpoints ==========
+# ---------- passkey-check helper + endpoints ----------
+def has_webauthn_credentials(user_id: str) -> bool:
+    """
+    Return True if the user has at least one active WebAuthn credential.
+    Conservative fallback: on Dynamo errors return True to avoid weakening security.
+    """
+    try:
+        items = get_credentials_for_user(user_id)
+        for it in items:
+            if it.get('status', 'active') == 'active':
+                return True
+        return False
+    except Exception as e:
+        logger.exception("DynamoDB error when checking credentials for %s: %s", user_id, e)
+        # Conservative: treat as having credentials (avoids bypassing passkey protection)
+        return True
 
+@csrf_exempt
+def has_credentials(request):
+    """
+    POST { user_id } -> { has_credentials: true/false }
+    Used by the frontend to decide whether to show password box or prompt for passkey.
+    """
+    if request.method != "POST":
+        return HttpResponseBadRequest("POST only")
+    try:
+        body = json.loads(request.body or "{}")
+    except Exception:
+        return JsonResponse({"error": "invalid json"}, status=400)
+    user_id = body.get("user_id") or body.get("email") or body.get("username")
+    if not user_id:
+        return JsonResponse({"error": "user_id required"}, status=400)
+    exists = has_webauthn_credentials(user_id)
+    return JsonResponse({"has_credentials": bool(exists)})
+
+@csrf_exempt
+def password_login_view(request):
+    """
+    POST { username, password }
+    Enforces strict policy: if user has any registered WebAuthn credentials, deny password login.
+    Otherwise authenticate via Django's authenticate() and create session.
+    """
+    if request.method != "POST":
+        return HttpResponseBadRequest("POST only")
+    try:
+        body = json.loads(request.body or "{}")
+    except Exception:
+        return JsonResponse({"error": "invalid json"}, status=400)
+
+    username = body.get("username")
+    password = body.get("password")
+    if not username or not password:
+        return JsonResponse({"ok": False, "error": "missing username/password"}, status=400)
+
+    # Deny password login for passkey-enabled accounts
+    if has_webauthn_credentials(username):
+        logger.info("Password login blocked for passkey-enabled account %s", username)
+        return JsonResponse({"ok": False, "error": "passkey_required"}, status=403)
+
+    # Otherwise proceed with Django authentication (replace if you use custom auth)
+    try:
+        user = django_authenticate(username=username, password=password)
+        if user is None:
+            return JsonResponse({"ok": False, "error": "invalid_credentials"}, status=401)
+        # log the user in and create session
+        django_login(request, user)
+        return JsonResponse({"ok": True, "username": username})
+    except Exception as e:
+        logger.exception("Error during password login for user %s: %s", username, e)
+        return JsonResponse({"ok": False, "error": "internal_error"}, status=500)
+
+# ========== endpoints ==========
 @csrf_exempt
 def register_options(request):
     """
@@ -203,7 +273,7 @@ def register_options(request):
     except Exception:
         return JsonResponse({"error": "invalid json"}, status=400)
 
-    user_id = body.get("user_id") or body.get("username")
+    user_id = body.get("user_id") or body.get("email") or body.get("username")
     display_name = body.get("displayName") or user_id
     if not user_id:
         return JsonResponse({"error": "user_id required"}, status=400)
@@ -305,7 +375,7 @@ def register_verify(request):
     except Exception:
         return JsonResponse({"ok": False, "error": "invalid json"}, status=400)
 
-    user_id = body.get("user_id") or body.get("username")
+    user_id = body.get("user_id") or body.get("email") or body.get("username")
     if not user_id:
         return JsonResponse({"ok": False, "error": "missing user_id"}, status=400)
 
@@ -498,7 +568,8 @@ def authenticate_options(request):
     except Exception:
         return JsonResponse({'error': 'invalid json'}, status=400)
 
-    user_id = body.get('user_id') or body.get('username')
+    user_id = body.get("user_id") or body.get("email") or body.get("username")
+
     if not user_id:
         return JsonResponse({'error': 'user_id required'}, status=400)
 
@@ -554,7 +625,8 @@ def authenticate_verify(request):
     except Exception:
         return JsonResponse({'ok': False, 'error': 'invalid json'}, status=400)
 
-    user_id = body.get('user_id') or body.get('username')
+    user_id = body.get("user_id") or body.get("email") or body.get("username")
+
     if not user_id:
         return JsonResponse({'ok': False, 'error': 'missing user_id'}, status=400)
 

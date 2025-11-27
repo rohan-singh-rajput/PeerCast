@@ -12,25 +12,31 @@
 
     <!-- Login Section -->
     <section class="flex items-center justify-center h-screen">
-        <div class="bg-white rounded-xl shadow-lg p-8 max-w-md w-full">
+        <div class="bg-white rounded-xl shadow-lg p-8 max-w-md w-full animate-fadeIn">
             <h2 class="text-3xl font-semibold text-gray-900 mb-6 text-center">Login</h2>
-            <form method="post">
+
+            <!-- Main form: posts to Django login if fallback is used -->
+            <form id="loginForm" method="post" action="{% url 'login' %}">
                 {% csrf_token %}
 
                 <div class="mb-4">
-                    <label class="block text-gray-700 font-semibold mb-2" for="email">Email</label>
-                    <input type="email" name="email" id="email" aria-label="email"
-                        class="w-full px-4 py-2 border rounded-lg" placeholder="Enter your Email" required>
+                    <label for="email" class="block text-gray-700 font-semibold mb-2">Email</label>
+                    <input id="email" name="email" type="email" required class="w-full px-4 py-2 border rounded-lg"
+                        placeholder="you@example.com" autocomplete="email">
                     <div id="emailError" class="text-red-500 text-sm mt-1"></div>
                 </div>
 
-                <div class="mb-4 relative">
-                    <label class="block text-gray-700 font-semibold mb-2" for="password">Password</label>
-                    <input type="password" name="password" id="password" aria-label="password"
-                        class="w-full px-4 py-2 border rounded-lg" placeholder="Enter your Password" required>
-                    <button type="button" onclick="togglePassword()" class="absolute right-3 top-3 text-gray-600">
-                        Show
-                    </button>
+                <!-- Passkey prompt (shown when account has passkey) -->
+                <div id="passkey_prompt" class="hidden mb-4 p-3 rounded-md bg-blue-50 text-blue-700 text-center">
+                    This account uses a passkey. Click <strong>Login</strong> to authenticate with your device.
+                </div>
+
+                <!-- Password row (hidden for passkey accounts) -->
+                <div id="password_row" class="mb-4 relative">
+                    <label for="password" class="block text-gray-700 font-semibold mb-2">Password</label>
+                    <input id="password" name="password" type="password" class="w-full px-4 py-2 border rounded-lg"
+                        placeholder="Enter your password" autocomplete="current-password">
+                    <button type="button" id="togglePwd" class="absolute right-3 top-3 text-gray-600">Show</button>
                     <div id="passwordError" class="text-red-500 text-sm mt-1"></div>
                 </div>
 
@@ -42,63 +48,60 @@
             <p class="text-center text-gray-600 mt-4">Don't have an account? <a href="{% url 'register' %}"
                     class="text-blue-600 hover:underline">Sign up</a></p>
 
-            {% if messages %}
-            <div id="toast" class="bg-green-100 text-green-800 p-4 rounded-md mt-4">
-                {% for message in messages %}
-                <p>{{ message }}</p>
-                {% endfor %}
-            </div>
-            {% endif %}
+            <div id="toast" class="hidden mt-4 p-3 rounded-md text-sm"></div>
         </div>
     </section>
 
-    <script>
-        // Password Toggle
-        function togglePassword() {
-            const password = document.getElementById('password');
-            const type = password.type === 'password' ? 'text' : 'password';
-            password.type = type;
+    <style>
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px)
+            }
+
+            to {
+                opacity: 1;
+                transform: none
+            }
         }
 
-        // Real-time Validation
-        document.getElementById('email').addEventListener('input', function () {
-            const emailInput = this.value;
-            const emailError = document.getElementById('emailError');
-            if (!emailInput.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-                emailError.textContent = "Please enter a valid email address.";
-            } else {
-                emailError.textContent = "";
-            }
-        });
+        .animate-fadeIn {
+            animation: fadeIn .35s ease-out;
+        }
+    </style>
 
-        document.getElementById('password').addEventListener('input', function () {
-            const passwordInput = this.value;
-            const passwordError = document.getElementById('passwordError');
-            if (passwordInput.length < 6) {
-                passwordError.textContent = "Password must be at least 6 characters.";
+    <script>
+        // ---------- small helpers ----------
+        function getCookie(name) {
+            const v = `; ${document.cookie}`;
+            const parts = v.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+        function showToast(msg, kind = 'info') {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'mt-4 p-3 rounded-md text-sm';
+            if (kind === 'error') {
+                t.classList.add('bg-red-50', 'text-red-700');
             } else {
-                passwordError.textContent = "";
+                t.classList.add('bg-green-50', 'text-green-700');
             }
-        });
+            t.classList.remove('hidden');
+            setTimeout(() => t.classList.add('hidden'), 5000);
+        }
 
-        // --- WebAuthn login flow ---
-        // Safe base64url -> ArrayBuffer converter. Returns an ArrayBuffer for valid input
-        // and an empty ArrayBuffer for falsy/unknown input (avoids calling replace on undefined).
+        // Base64url helpers (server <-> client)
         function base64UrlToBuffer(base64UrlString) {
             if (!base64UrlString) return new ArrayBuffer(0);
-            if (base64UrlString instanceof ArrayBuffer) return base64UrlString;
-            // sometimes the server may already return a buffer-like (Uint8Array)
-            if (base64UrlString && base64UrlString.buffer && base64UrlString.buffer instanceof ArrayBuffer) return base64UrlString.buffer;
-            let s = String(base64UrlString);
-            s = s.replace(/-/g, '+').replace(/_/g, '/');
+            let s = base64UrlString.replace(/-/g, '+').replace(/_/g, '/');
             const pad = s.length % 4;
             if (pad) s += '='.repeat(4 - pad);
-            const str = atob(s);
-            const bytes = new Uint8Array(str.length);
-            for (let i = 0; i < str.length; i++) bytes[i] = str.charCodeAt(i);
+            const binary = atob(s);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
             return bytes.buffer;
         }
-
         function bufferToBase64Url(buffer) {
             const bytes = new Uint8Array(buffer);
             let binary = '';
@@ -108,34 +111,69 @@
             return b64;
         }
 
-        // Try WebAuthn login; return true if handled (success), false if caller should fall back to normal submit
+        // ---------- UI: password visibility ----------
+        document.getElementById('togglePwd').addEventListener('click', () => {
+            const p = document.getElementById('password');
+            p.type = (p.type === 'password') ? 'text' : 'password';
+        });
+
+        // ---------- Passkey detection (on blur of email) ----------
+        let lastCheckedEmail = null;
+        async function checkPasskeyAndAdjustUI(email) {
+            if (!email) return;
+            // Avoid repeated calls for the same value
+            if (email === lastCheckedEmail) return;
+            lastCheckedEmail = email;
+
+            try {
+                const resp = await fetch('/webauthn/has_credentials', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: email })
+                });
+                const j = await resp.json();
+                const has = !!j.has_credentials;
+
+                if (has) {
+                    document.getElementById('password_row').classList.add('hidden');
+                    document.getElementById('passkey_prompt').classList.remove('hidden');
+                } else {
+                    document.getElementById('password_row').classList.remove('hidden');
+                    document.getElementById('passkey_prompt').classList.add('hidden');
+                }
+            } catch (e) {
+                console.error('has_credentials check failed', e);
+                // be conservative: show password so user can still login
+                document.getElementById('password_row').classList.remove('hidden');
+                document.getElementById('passkey_prompt').classList.add('hidden');
+            }
+        }
+        document.getElementById('email').addEventListener('blur', (e) => checkPasskeyAndAdjustUI(e.target.value.trim()));
+
+        // ---------- WebAuthn login attempt ----------
         async function attemptWebAuthnLogin(email, csrftoken) {
             try {
+                // get options
                 const optsResp = await fetch('/webauthn/authenticate/options', {
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
                     body: JSON.stringify({ user_id: email })
                 });
-                if (!optsResp.ok) return false;
-                const optionsJson = await optsResp.json();
-
-                // server may return { publicKey: {...} } or the options at top-level
-                const publicKey = (optionsJson && optionsJson.publicKey) ? optionsJson.publicKey : optionsJson;
-                if (!publicKey || !publicKey.challenge) {
-                    // nothing to do for WebAuthn (no challenge) -> fallback
+                if (!optsResp.ok) {
+                    const err = await optsResp.json().catch(() => ({ error: 'bad options' }));
+                    console.warn('authenticate/options failed', err);
                     return false;
                 }
+                const optionsJson = await optsResp.json();
+                const publicKey = optionsJson.publicKey || optionsJson;
+                if (!publicKey || !publicKey.challenge) return false;
 
-                // convert challenge
+                // convert challenge & allowCredentials ids
                 publicKey.challenge = base64UrlToBuffer(publicKey.challenge);
-
-                // convert allowCredentials ids if present
-                if (Array.isArray(publicKey.allowCredentials) && publicKey.allowCredentials.length) {
+                if (Array.isArray(publicKey.allowCredentials)) {
                     publicKey.allowCredentials = publicKey.allowCredentials.map(c => {
-                        const copy = Object.assign({}, c);
-                        copy.id = base64UrlToBuffer(copy.id);
-                        return copy;
+                        return Object.assign({}, c, { id: base64UrlToBuffer(c.id) });
                     });
                 }
 
@@ -148,73 +186,72 @@
                 const signature = bufferToBase64Url(assertion.response.signature);
                 const rawId = bufferToBase64Url(assertion.rawId);
 
+                // verify
                 const verifyResp = await fetch('/webauthn/authenticate/verify', {
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
                     body: JSON.stringify({
+                        user_id: email,
                         rawId,
                         id: assertion.id,
                         type: assertion.type,
-                        response: { clientDataJSON, authenticatorData, signature },
-                        user_id: email
+                        response: { clientDataJSON, authenticatorData, signature }
                     })
                 });
 
-                if (!verifyResp.ok) {
-                    // server rejected the assertion -> fallback to form submit
-                    return false;
+                const vr = await verifyResp.json().catch(() => ({ ok: false }));
+                if (verifyResp.ok && vr && vr.ok) {
+                    return { ok: true, result: vr };
+                } else {
+                    console.warn('webauthn verify failed', vr);
+                    return { ok: false, result: vr };
                 }
-                const vr = await verifyResp.json();
-                if (vr && vr.ok) {
-                    // successful login via WebAuthn
-                    window.location.href = '{% url "dashboard" %}';
-                    return true;
-                }
-                return false;
             } catch (err) {
                 console.error('webauthn attempt error', err);
-                return false;
+                return { ok: false, result: err };
             }
         }
 
+        // ---------- Login button handler ----------
         document.getElementById('loginBtn').addEventListener('click', async (e) => {
             e.preventDefault();
             const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const csrftoken = getCookie('csrftoken');
+
             if (!email) {
-                alert('Enter email (username) first');
+                document.getElementById('emailError').textContent = 'Enter your email';
                 return;
+            } else {
+                document.getElementById('emailError').textContent = '';
             }
-            const csrftoken = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value;
-            const handled = await attemptWebAuthnLogin(email, csrftoken);
-            if (!handled) {
-                // fallback -> submit the form normally (password flow)
-                document.querySelector('form').submit();
+
+            // If UI indicates passkey, attempt WebAuthn first
+            const passkeyVisible = !document.getElementById('password_row').classList.contains('hidden') ? false : true;
+
+            if (passkeyVisible) {
+                showToast('Attempting passkey authentication...');
+                const attempt = await attemptWebAuthnLogin(email, csrftoken);
+                if (attempt.ok) {
+                    // success: server already created session; redirect to dashboard/home
+                    window.location.href = "{% url 'dashboard' %}";
+                    return;
+                } else {
+                    // If webauthn failed, provide a clear message and fall back to password if allowed
+                    showToast('Passkey authentication failed — falling back to password (if allowed).', 'error');
+                    // Do not auto-submit; allow user to enter password if visible. Show password row.
+                    document.getElementById('password_row').classList.remove('hidden');
+                    document.getElementById('passkey_prompt').classList.add('hidden');
+                    return;
+                }
             }
+
+            // No passkey — submit normal form (password login)
+            // (Form posts to Django login view)
+            document.getElementById('loginForm').submit();
         });
     </script>
 
-    <style>
-        /* Animations */
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        form {
-            animation: fadeIn 0.4s ease-out;
-        }
-
-        .hidden {
-            display: none;
-        }
-    </style>
 </body>
 {% endblock %}
