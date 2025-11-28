@@ -17,3 +17,5 @@ asyncio
 webauthn
 tailwindcss
 fido2
+cryptography
+cbor2

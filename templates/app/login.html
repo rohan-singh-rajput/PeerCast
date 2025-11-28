@@ -15,7 +15,7 @@
         <div class="bg-white rounded-xl shadow-lg p-8 max-w-md w-full animate-fadeIn">
             <h2 class="text-3xl font-semibold text-gray-900 mb-6 text-center">Login</h2>
 
-            <!-- Main form: posts to Django login if fallback is used -->
+            <!-- Main form -->
             <form id="loginForm" method="post" action="{% url 'login' %}">
                 {% csrf_token %}
 
@@ -26,12 +26,10 @@
                     <div id="emailError" class="text-red-500 text-sm mt-1"></div>
                 </div>
 
-                <!-- Passkey prompt (shown when account has passkey) -->
                 <div id="passkey_prompt" class="hidden mb-4 p-3 rounded-md bg-blue-50 text-blue-700 text-center">
                     This account uses a passkey. Click <strong>Login</strong> to authenticate with your device.
                 </div>
 
-                <!-- Password row (hidden for passkey accounts) -->
                 <div id="password_row" class="mb-4 relative">
                     <label for="password" class="block text-gray-700 font-semibold mb-2">Password</label>
                     <input id="password" name="password" type="password" class="w-full px-4 py-2 border rounded-lg"
@@ -71,7 +69,7 @@
     </style>
 
     <script>
-        // ---------- small helpers ----------
+        // ---------- helpers ----------
         function getCookie(name) {
             const v = `; ${document.cookie}`;
             const parts = v.split(`; ${name}=`);
@@ -91,7 +89,7 @@
             setTimeout(() => t.classList.add('hidden'), 5000);
         }
 
-        // Base64url helpers (server <-> client)
+        // base64url <-> ArrayBuffer
         function base64UrlToBuffer(base64UrlString) {
             if (!base64UrlString) return new ArrayBuffer(0);
             let s = base64UrlString.replace(/-/g, '+').replace(/_/g, '/');
@@ -111,29 +109,28 @@
             return b64;
         }
 
-        // ---------- UI: password visibility ----------
+        // password visibility
         document.getElementById('togglePwd').addEventListener('click', () => {
             const p = document.getElementById('password');
             p.type = (p.type === 'password') ? 'text' : 'password';
         });
 
-        // ---------- Passkey detection (on blur of email) ----------
+        // --- has_credentials check (on blur)
         let lastCheckedEmail = null;
         async function checkPasskeyAndAdjustUI(email) {
+            console.log('[WEBAUTHN] has_credentials check for', email);
             if (!email) return;
-            // Avoid repeated calls for the same value
             if (email === lastCheckedEmail) return;
             lastCheckedEmail = email;
-
             try {
                 const resp = await fetch('/webauthn/has_credentials', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ user_id: email })
                 });
-                const j = await resp.json();
+                const j = await resp.json().catch(() => ({ has_credentials: false }));
+                console.log('[WEBAUTHN] /has_credentials response', resp.status, j);
                 const has = !!j.has_credentials;
-
                 if (has) {
                     document.getElementById('password_row').classList.add('hidden');
                     document.getElementById('passkey_prompt').classList.remove('hidden');
@@ -142,54 +139,81 @@
                     document.getElementById('passkey_prompt').classList.add('hidden');
                 }
             } catch (e) {
-                console.error('has_credentials check failed', e);
-                // be conservative: show password so user can still login
+                console.error('[WEBAUTHN] has_credentials fetch failed', e);
                 document.getElementById('password_row').classList.remove('hidden');
                 document.getElementById('passkey_prompt').classList.add('hidden');
             }
         }
         document.getElementById('email').addEventListener('blur', (e) => checkPasskeyAndAdjustUI(e.target.value.trim()));
 
-        // ---------- WebAuthn login attempt ----------
+        // ---------- Attempt WebAuthn login (with console logs) ----------
         async function attemptWebAuthnLogin(email, csrftoken) {
+            console.log('[WEBAUTHN] START attemptWebAuthnLogin for', email);
             try {
-                // get options
                 const optsResp = await fetch('/webauthn/authenticate/options', {
                     method: 'POST',
-                    credentials: 'same-origin',
+                    credentials: 'include',  // Include cookies for consistency
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
                     body: JSON.stringify({ user_id: email })
                 });
-                if (!optsResp.ok) {
-                    const err = await optsResp.json().catch(() => ({ error: 'bad options' }));
-                    console.warn('authenticate/options failed', err);
-                    return false;
-                }
-                const optionsJson = await optsResp.json();
-                const publicKey = optionsJson.publicKey || optionsJson;
-                if (!publicKey || !publicKey.challenge) return false;
+                console.log('[WEBAUTHN] options resp status', optsResp.status);
+                const optsText = await optsResp.text();
+                let optionsJson;
+                try { optionsJson = JSON.parse(optsText); } catch (e) { optionsJson = optsText; }
+                console.log('[WEBAUTHN] options body', optionsJson);
 
-                // convert challenge & allowCredentials ids
-                publicKey.challenge = base64UrlToBuffer(publicKey.challenge);
-                if (Array.isArray(publicKey.allowCredentials)) {
-                    publicKey.allowCredentials = publicKey.allowCredentials.map(c => {
-                        return Object.assign({}, c, { id: base64UrlToBuffer(c.id) });
+                // Support both publicKey (camelCase) and public_key (snake_case) server shapes
+                let publicKey = optionsJson && (optionsJson.publicKey || optionsJson.public_key) ? (optionsJson.publicKey || optionsJson.public_key) : optionsJson;
+                if (!publicKey || !publicKey.challenge) {
+                    // Try more defensive lookups (some libs nest under 'public_key' etc)
+                    if (publicKey && publicKey.publicKey) publicKey = publicKey.publicKey;
+                }
+
+                if (!publicKey || !publicKey.challenge) {
+                    console.warn('[WEBAUTHN] no challenge in options — fallback', publicKey);
+                    return { ok: false, error: 'no-challenge', details: publicKey };
+                }
+
+                // get challenge (accept snake_case or camelCase)
+                const challengeVal = publicKey.challenge || publicKey.challenge; // same name but defensive
+                publicKey.challenge = base64UrlToBuffer(challengeVal);
+
+                // allowCredentials may be allowCredentials or allow_credentials and ids may be base64url
+                let allow = publicKey.allowCredentials || publicKey.allow_credentials || publicKey.allow_credentials_list || [];
+                if (Array.isArray(allow) && allow.length) {
+                    publicKey.allowCredentials = allow.map(c => {
+                        const copy = Object.assign({}, c);
+                        copy.id = base64UrlToBuffer(copy.id);
+                        return copy;
                     });
                 }
 
-                // ask user agent for assertion
-                const assertion = await navigator.credentials.get({ publicKey });
-                if (!assertion) return false;
+                console.log('[WEBAUTHN] publicKey prepared', publicKey);
+
+                let assertion;
+                try {
+                    assertion = await navigator.credentials.get({ publicKey });
+                    console.log('[WEBAUTHN] navigator.credentials.get SUCCESS', assertion);
+                } catch (navErr) {
+                    console.error('[WEBAUTHN] navigator.credentials.get THROW', navErr);
+                    return { ok: false, error: 'nav-get-failed', detail: (navErr && (navErr.message || String(navErr))) };
+                }
+
+                if (!assertion) {
+                    console.warn('[WEBAUTHN] navigator.credentials.get returned no assertion (null) — fallback');
+                    return { ok: false, error: 'no-assertion' };
+                }
 
                 const clientDataJSON = bufferToBase64Url(assertion.response.clientDataJSON);
                 const authenticatorData = bufferToBase64Url(assertion.response.authenticatorData);
                 const signature = bufferToBase64Url(assertion.response.signature);
                 const rawId = bufferToBase64Url(assertion.rawId);
 
-                // verify
+                console.log('[WEBAUTHN] sending /authenticate/verify, rawId=', rawId);
+
                 const verifyResp = await fetch('/webauthn/authenticate/verify', {
                     method: 'POST',
-                    credentials: 'same-origin',
+                    credentials: 'include',  // CRITICAL: include cookies for session persistence
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
                     body: JSON.stringify({
                         user_id: email,
@@ -200,20 +224,26 @@
                     })
                 });
 
-                const vr = await verifyResp.json().catch(() => ({ ok: false }));
-                if (verifyResp.ok && vr && vr.ok) {
-                    return { ok: true, result: vr };
+                console.log('[WEBAUTHN] verify response status', verifyResp.status);
+                const verifyText = await verifyResp.text();
+                let verifyJson;
+                try { verifyJson = JSON.parse(verifyText); } catch (e) { verifyJson = verifyText; }
+                console.log('[WEBAUTHN] verify body', verifyJson);
+
+                if (verifyResp.ok && verifyJson && verifyJson.ok) {
+                    console.log('[WEBAUTHN] verify succeeded, session should be set');
+                    return { ok: true, result: verifyJson };
                 } else {
-                    console.warn('webauthn verify failed', vr);
-                    return { ok: false, result: vr };
+                    return { ok: false, result: verifyJson || 'verify-failed' };
                 }
             } catch (err) {
-                console.error('webauthn attempt error', err);
+                console.error('[WEBAUTHN] unexpected error in attemptWebAuthnLogin', err);
                 return { ok: false, result: err };
             }
         }
 
-        // ---------- Login button handler ----------
+
+        // ---------- Login button ----------
         document.getElementById('loginBtn').addEventListener('click', async (e) => {
             e.preventDefault();
             const email = document.getElementById('email').value.trim();
@@ -227,28 +257,26 @@
                 document.getElementById('emailError').textContent = '';
             }
 
-            // If UI indicates passkey, attempt WebAuthn first
-            const passkeyVisible = !document.getElementById('password_row').classList.contains('hidden') ? false : true;
+            // If UI indicates passkey (password hidden), try WebAuthn first
+            const passkeyVisible = document.getElementById('password_row').classList.contains('hidden');
 
             if (passkeyVisible) {
                 showToast('Attempting passkey authentication...');
                 const attempt = await attemptWebAuthnLogin(email, csrftoken);
                 if (attempt.ok) {
-                    // success: server already created session; redirect to dashboard/home
+                    console.log('[WEBAUTHN] login success; redirecting...');
                     window.location.href = "{% url 'dashboard' %}";
                     return;
                 } else {
-                    // If webauthn failed, provide a clear message and fall back to password if allowed
+                    console.warn('[WEBAUTHN] passkey failed, falling back. reason:', attempt.result);
                     showToast('Passkey authentication failed — falling back to password (if allowed).', 'error');
-                    // Do not auto-submit; allow user to enter password if visible. Show password row.
                     document.getElementById('password_row').classList.remove('hidden');
                     document.getElementById('passkey_prompt').classList.add('hidden');
                     return;
                 }
             }
 
-            // No passkey — submit normal form (password login)
-            // (Form posts to Django login view)
+            // fallback: submit form for password login
             document.getElementById('loginForm').submit();
         });
     </script>
