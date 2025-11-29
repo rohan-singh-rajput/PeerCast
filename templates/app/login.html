@@ -13,67 +13,85 @@
     <section class="flex items-center justify-center h-screen">
         <div class="bg-white rounded-xl shadow-lg p-8 max-w-md w-full">
             <h2 class="text-3xl font-semibold text-gray-900 mb-6 text-center">Login</h2>
-            <form method="post">
+            <form id="webauthn-login-form">
                 {% csrf_token %}
-
                 <div class="mb-4">
-                    <label class="block text-gray-700 font-semibold mb-2" for="email">Email</label>
-                    <input type="email" name="email" id="email" aria-label="email" class="w-full px-4 py-2 border rounded-lg" placeholder="Enter your Email" required>
-                    <div id="emailError" class="text-red-500 text-sm mt-1"></div>
+                    <label class="block text-gray-700 font-semibold mb-2" for="username">Username</label>
+                    <input type="text" name="username" id="username" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter your Username" required>
+                    <div id="usernameError" class="text-red-500 text-sm mt-1"></div>
                 </div>
-
-                <div class="mb-4 relative">
-                    <label class="block text-gray-700 font-semibold mb-2" for="password">Password</label>
-                    <input type="password" name="password" id="password" aria-label="password" class="w-full px-4 py-2 border rounded-lg" placeholder="Enter your Password" required>
-                    <button type="button" onclick="togglePassword()" class="absolute right-3 top-3 text-gray-600">
-                        Show
-                    </button>
-                    <div id="passwordError" class="text-red-500 text-sm mt-1"></div>
-                </div>
-
-                <button type="submit" class="bg-gray-900 text-white px-6 py-2 rounded-full w-full">
-                    Login
-                </button>
+                <button id="login-passkey" type="button" class="bg-gray-900 text-white px-6 py-2 rounded-full shadow-md hover:bg-gray-700 transition-all duration-300 w-full">Login with Passkey</button>
             </form>
-
-            <p class="text-center text-gray-600 mt-4">Don't have an account? <a href="{% url 'register' %}" class="text-blue-600 hover:underline">Sign up</a></p>
-
-            {% if messages %}
-            <div id="toast" class="bg-green-100 text-green-800 p-4 rounded-md mt-4">
-                {% for message in messages %}
-                    <p>{{ message }}</p>
-                {% endfor %}
-            </div>
-            {% endif %}
         </div>
     </section>
 
     <script>
-        // Password Toggle
-        function togglePassword() {
-            const password = document.getElementById('password');
-            const type = password.type === 'password' ? 'text' : 'password';
-            password.type = type;
+        function bufferToBase64Url(buf) {
+            const bytes = new Uint8Array(buf);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+        function base64UrlToBuffer(base64url) {
+            let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+            while (base64.length % 4) base64 += '=';
+            const binary = atob(base64);
+            const len = binary.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+            return bytes.buffer;
         }
 
-        // Real-time Validation
-        document.getElementById('email').addEventListener('input', function () {
-            const emailInput = this.value;
-            const emailError = document.getElementById('emailError');
-            if (!emailInput.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-                emailError.textContent = "Please enter a valid email address.";
-            } else {
-                emailError.textContent = "";
-            }
-        });
+        document.getElementById('login-passkey').addEventListener('click', async () => {
+            const username = document.getElementById('username').value;
+            if (!username) { alert('Enter username'); return; }
 
-        document.getElementById('password').addEventListener('input', function () {
-            const passwordInput = this.value;
-            const passwordError = document.getElementById('passwordError');
-            if (passwordInput.length < 6) {
-                passwordError.textContent = "Password must be at least 6 characters.";
+            // 1) request assertion options
+            const resp = await fetch("{% url 'webauthn_login_start' %}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ username })
+            });
+            const options = await resp.json();
+
+            // convert arrays
+            // Backend returns camelCase keys now
+            
+            // challenge
+            options.challenge = base64UrlToBuffer(options.challenge);
+
+            // allowCredentials
+            if (options.allowCredentials) {
+                options.allowCredentials = options.allowCredentials.map(c => ({ ...c, id: base64UrlToBuffer(c.id) }));
+            }
+
+            // 2) call get()
+            const assertion = await navigator.credentials.get({ publicKey: options });
+
+            // 3) prepare to send to server
+            const authData = {
+            id: assertion.id,
+            rawId: bufferToBase64Url(assertion.rawId),
+            type: assertion.type,
+            response: {
+                clientDataJSON: bufferToBase64Url(assertion.response.clientDataJSON),
+                authenticatorData: bufferToBase64Url(assertion.response.authenticatorData),
+                signature: bufferToBase64Url(assertion.response.signature),
+                userHandle: assertion.response.userHandle ? bufferToBase64Url(assertion.response.userHandle) : null
+            }
+            };
+
+            const completeResp = await fetch("{% url 'webauthn_login_complete' %}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify(authData)
+            });
+
+            const result = await completeResp.json();
+            if (result.status === 'ok') {
+            window.location.href = "{% url 'dashboard' %}";
             } else {
-                passwordError.textContent = "";
+            alert('Login failed: ' + JSON.stringify(result));
             }
         });
     </script>

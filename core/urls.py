@@ -32,7 +32,11 @@ urlpatterns = [
 
    path('join/<slug:slug>/', views.join_room_view, name='join_room'),
    path('join-room-link/', views.join_room_via_link, name='join_room_via_link'),
-    path('room/<slug:slug>/close/', views.close_room, name='close_room'),
+   path('room/<slug:slug>/close/', views.close_room, name='close_room'),
 
+   path('webauthn/register/start/', views.webauthn_register_start, name='webauthn_register_start'),
+   path('webauthn/register/complete/', views.webauthn_register_complete, name='webauthn_register_complete'),
+   path('webauthn/login/start/', views.webauthn_login_start, name='webauthn_login_start'),
+   path('webauthn/login/complete/', views.webauthn_login_complete, name='webauthn_login_complete'),
     
 ]

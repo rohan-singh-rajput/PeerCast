@@ -6,6 +6,7 @@ from django.contrib.auth.models import (
     PermissionsMixin,
 )
 import uuid
+import base64
 
 
 class UserProfileManager(BaseUserManager):
@@ -114,3 +115,20 @@ class Message(models.Model):
 
     class Meta:
         ordering = ['timestamp']
+
+
+class Credential(models.Model):
+    user = models.ForeignKey('UserProfile', on_delete=models.CASCADE, related_name="credentials")
+    credential_id = models.BinaryField(unique=True)   # store raw bytes
+    public_key = models.BinaryField()
+    sign_count = models.BigIntegerField(default=0)
+    transports = models.JSONField(null=True, blank=True)
+    name = models.CharField(max_length=255, blank=True)  # user-provided device name
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def cred_id_b64(self):
+        return base64.urlsafe_b64encode(self.credential_id).decode('utf-8').rstrip("=")
+
+    def __str__(self):
+        return f"Credential {self.id} for {self.user.username}"
+
