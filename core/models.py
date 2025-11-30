@@ -86,9 +86,24 @@ class Room(models.Model):
         related_name='owned_rooms',
         null=True
     )
+    trusted_visitors = models.JSONField(default=list, blank=True)
 
     def __str__(self):
         return self.name
+    
+    def is_visitor_allowed(self, user):
+        """
+        Check if a user is allowed to access this room.
+        Returns True if:
+        - The user is the owner
+        - The trusted_visitors list is empty (open to all)
+        - The user's email is in the trusted_visitors list
+        """
+        if user == self.owner:
+            return True
+        if not self.trusted_visitors:  # Empty list means open to all
+            return True
+        return user.email in self.trusted_visitors
 
 
 

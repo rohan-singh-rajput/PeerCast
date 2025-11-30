@@ -69,10 +69,27 @@
         {% endif %}
 
         <!-- Room Creation Form -->
-        <!-- Room Creation Form -->
         <form method="post" id="room-form" target="_blank">
             {% csrf_token %}
-            {{ form.as_p }}
+            
+            <!-- Room Name Field -->
+            <div class="mb-4">
+                <label for="id_name" class="block text-sm font-medium text-gray-700 mb-2">Room Name</label>
+                {{ form.name }}
+            </div>
+
+            <!-- Trusted Visitors Field -->
+            <div class="mb-4">
+                <label for="id_trusted_visitors" class="block text-sm font-medium text-gray-700 mb-2">
+                    {{ form.trusted_visitors.label }}
+                </label>
+                {{ form.trusted_visitors }}
+                <p class="mt-1 text-sm text-gray-500">{{ form.trusted_visitors.help_text }}</p>
+                {% if form.trusted_visitors.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.trusted_visitors.errors.0 }}</p>
+                {% endif %}
+            </div>
+
             <input type="hidden" id="video-url-input" name="video_url">
 
             <!-- Video Upload Section -->
@@ -100,11 +117,10 @@
                 Create Room
             </button>
         </form>
-        <div id="log" class="mt-4 text-sm text-gray-600"></div>
-    </div>
+        <div id="log" class="mt-4 text-sm text-gray-600 overflow-y-auto max-h-48 p-2 border border-gray-200 rounded-md bg-gray-50"></div>
     </div>
 
-
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.10.0/dist/ffmpeg.min.js"></script>
     <script>
         const { createFFmpeg, fetchFile } = FFmpeg;
         const ffmpeg = createFFmpeg({ log: true });  // Create an FFmpeg instance with logging enabled
@@ -220,6 +236,7 @@
 
                         // Log the successful upload of each chunk
                         logDiv.innerHTML += `Uploaded chunk: ${chunkFilename}<br>`;
+                        logDiv.scrollTop = logDiv.scrollHeight; // Scroll to bottom
                         lastUploadedChunkIndex = chunkIndex;  // Update the last uploaded chunk index
                     } catch (e) {
                         // If the file doesn't exist yet
@@ -262,6 +279,22 @@
 
             menuButton.addEventListener('click', () => {
                 mobileMenu.classList.toggle('hidden'); // Show/hide mobile menu
+            });
+            
+            // File Input Change Listener
+            const videoInput = document.getElementById('videoInput');
+            const fileNameDisplay = document.getElementById('fileName');
+            
+            videoInput.addEventListener('change', function(e) {
+                if (this.files && this.files.length > 0) {
+                    fileNameDisplay.textContent = this.files[0].name;
+                    fileNameDisplay.classList.remove('text-gray-500');
+                    fileNameDisplay.classList.add('text-gray-900', 'font-medium');
+                } else {
+                    fileNameDisplay.textContent = "Choose a video file...";
+                    fileNameDisplay.classList.add('text-gray-500');
+                    fileNameDisplay.classList.remove('text-gray-900', 'font-medium');
+                }
             });
         });
 

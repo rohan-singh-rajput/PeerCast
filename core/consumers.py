@@ -83,10 +83,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def user_has_access(self, room):
-        return (
-                self.scope["user"] == room.owner or
-                self.scope["user"] in room.participants.all()
-        )
+        # Check if user is owner or if they're allowed based on trusted visitors list
+        if self.scope["user"] == room.owner or self.scope["user"] == room.host:
+            return True
+        return room.is_visitor_allowed(self.scope["user"]) and self.scope["user"] in room.participants.all()
 
     @database_sync_to_async
     def save_message(self, user, message):

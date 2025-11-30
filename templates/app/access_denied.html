@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<body class="bg-gradient-to-br from-red-50 to-red-100 min-h-screen flex items-center justify-center">
+    
+    <div class="max-w-2xl w-full bg-white rounded-lg shadow-2xl p-8 m-4">
+        <div class="text-center mb-8">
+            <!-- Access Denied Icon -->
+            <div class="mx-auto w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mb-6">
+                <svg class="w-12 h-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+            </div>
+            
+            <h1 class="text-4xl font-bold text-gray-900 mb-4">Access Denied</h1>
+            <p class="text-lg text-gray-600 mb-2">You are not authorized to access this room.</p>
+            <p class="text-sm text-gray-500">This room has restricted access to trusted visitors only.</p>
+        </div>
+
+        <!-- Room Info -->
+        <div class="bg-gray-50 rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-3">Room Information</h2>
+            <div class="space-y-2">
+                <p class="text-gray-700"><span class="font-medium">Room Name:</span> {{ room.name }}</p>
+                <p class="text-gray-700"><span class="font-medium">Room Owner:</span> {{ owner_email }}</p>
+            </div>
+        </div>
+
+        <!-- Help Text -->
+        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-blue-700">
+                        If you believe you should have access to this room, please contact the room owner at <strong>{{ owner_email }}</strong> to be added to the trusted visitors list.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex flex-col sm:flex-row gap-4">
+            <a href="{% url 'dashboard' %}" 
+               class="flex-1 bg-gray-900 text-white text-center px-6 py-3 rounded-full hover:bg-gray-800 transition-all shadow-md">
+                Return to Dashboard
+            </a>
+            <a href="{% url 'home' %}" 
+               class="flex-1 border border-gray-900 text-gray-900 text-center px-6 py-3 rounded-full hover:bg-gray-100 transition-all">
+                Go to Home
+            </a>
+        </div>
+    </div>
+
+</body>
+
+{% endblock %}

@@ -161,12 +161,14 @@ def demo_room(request):
 @login_required
 def close_room(request, slug):
     """
-    View to close a room. Only the host of the room can close it.
+    View to close a room. Only the owner of the room can close it.
     """
     room = get_object_or_404(Room, slug=slug)
 
-    if request.user != room.host:
-        messages.error(request, "Only the host can close the room.")
+    # Check owner first, fallback to host for backward compatibility
+    room_owner = room.owner or room.host
+    if request.user != room_owner:
+        messages.error(request, "Only the room owner can close the room.")
         return redirect('join_room', slug=room.slug)
 
     room.delete()
@@ -179,12 +181,24 @@ def close_room(request, slug):
 def join_room_view(request, slug):
     room = get_object_or_404(Room, slug=slug)
     
+    # Check if user is allowed to access this room
+    if not room.is_visitor_allowed(request.user):
+        messages.error(
+            request, 
+            "Access denied. You are not on the trusted visitor list for this room."
+        )
+        return render(request, 'app/access_denied.html', {
+            'room': room,
+            'owner_email': room.owner.email if room.owner else (room.host.email if room.host else 'Unknown')
+        })
+    
     if request.user not in room.participants.all():
         room.participants.add(request.user)
         room.save()
     
     context = {
         'room': room,
+        'is_owner': request.user == (room.owner or room.host),
     }
     return render(request, 'app/join_room.html', context)
 
@@ -234,8 +248,11 @@ def create_room_view(request):
         form = RoomForm(request.POST)
         if form.is_valid():
             room = form.save(commit=False)
-            room.host = request.user
+            room.owner = request.user
+            room.host = request.user  # Keep for backward compatibility
             room.video_url = request.POST.get('video_url')
+            # Save trusted visitors from cleaned form data
+            room.trusted_visitors = form.cleaned_data.get('trusted_visitors', [])
             room.save()
             return redirect('room_detail', slug=room.slug)
         else:

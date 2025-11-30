@@ -31,6 +31,11 @@
                     </svg>
                     Share Link
                 </button>
+                {% if is_owner and room.trusted_visitors %}
+                <button id="trusted-btn" class="px-3 py-1 border border-white text-sm rounded-full hover:bg-white hover:text-black transition">
+                    Trusted List
+                </button>
+                {% endif %}
             </div>
         </div>
 
@@ -52,6 +57,23 @@
                 {% endif %}
             </ul>
         </div>
+
+        <!-- Collapsible Trusted Visitors List (Owner Only) -->
+        {% if is_owner and room.trusted_visitors %}
+        <div id="trusted-list" class="hidden p-4 overflow-y-auto border-t border-gray-700">
+            <h3 class="text-lg font-semibold mb-4">Trusted Visitors</h3>
+            <ul class="space-y-2">
+                {% for email in room.trusted_visitors %}
+                    <li class="flex items-center space-x-4 p-2 rounded-lg shadow-md bg-gray-800 text-white border border-gray-600">
+                        <div class="h-8 w-8 bg-gray-600 text-white rounded-full flex items-center justify-center font-bold uppercase">
+                            @
+                        </div>
+                        <span>{{ email }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
 
         <div id="chat-messages" class="flex-1 overflow-y-auto p-4">
             <!-- Messages will be dynamically appended here -->
@@ -100,7 +122,24 @@
 
             participantsBtn.addEventListener('click', () => {
                 participantsList.classList.toggle('hidden');
+                // Hide trusted list if open
+                const trustedList = document.getElementById('trusted-list');
+                if (trustedList && !trustedList.classList.contains('hidden')) {
+                    trustedList.classList.add('hidden');
+                }
             });
+
+            // Toggle Trusted List
+            const trustedBtn = document.getElementById('trusted-btn');
+            const trustedList = document.getElementById('trusted-list');
+            
+            if (trustedBtn && trustedList) {
+                trustedBtn.addEventListener('click', () => {
+                    trustedList.classList.toggle('hidden');
+                    // Hide participants list if open
+                    participantsList.classList.add('hidden');
+                });
+            }
         });
 
         // Copy Room URL with Toast Notification
